@@ -1,0 +1,1 @@
+The contents of this folder need to be treated as a Google App Script.
