@@ -325,6 +325,48 @@ class CalendarManager {
 
 
   /**
+   * Deletes an existing event.
+   *
+   * @param {string} eventId
+   * @return {boolean}
+   */
+  remove(eventId) {
+
+    eventId =
+      this._validateId_(eventId);
+
+    const url =
+      this.calendarApiBase +
+      "/calendars/" +
+      encodeURIComponent(this.calendarId) +
+      "/events/" +
+      encodeURIComponent(eventId);
+
+    const response =
+      this._authenticatedFetch_(
+        url,
+        {
+          method: "delete"
+        }
+      );
+
+    const code =
+      response.getResponseCode();
+
+    if (code === 404) {
+      return false;
+    }
+
+    this._requireSuccess_(
+      response,
+      "delete calendar event"
+    );
+
+    return true;
+  }
+
+
+  /**
    * Retrieves events.
    *
    * options.state:
