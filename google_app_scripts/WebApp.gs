@@ -826,12 +826,24 @@ function buildErrorResponse_(error) {
     if (
       error.message.indexOf("Script property") !== -1 ||
       error.message.indexOf("SERVICE_ACCOUNT_KEY") !== -1 ||
-      error.message.indexOf("ResourceManager") !== -1
+      error.message.indexOf("ResourceManager") !== -1 ||
+      error.message.indexOf("Service Account authentication failed") !== -1 ||
+      error.message.indexOf("returned no access token") !== -1
     ) {
       return {
         ok: false,
         code: "SERVER_CONFIG_ERROR",
         message: "Server configuration is incomplete."
+      };
+    }
+
+    if (
+      error.message.indexOf("Unable to ") !== -1
+    ) {
+      return {
+        ok: false,
+        code: "INTERNAL_ERROR",
+        message: "The request could not be completed."
       };
     }
 
