@@ -14,6 +14,8 @@ const deleteDialog = document.querySelector("#deleteDialog");
 
 let events = [];
 let deleteId = null;
+let editorStatus = "Draft";
+let saving = false;
 
 const esc = s =>
   String(s ?? "").replace(
@@ -82,6 +84,7 @@ function render() {
       e => `
         <article class="event-card">
           <div>
+            <strong class="event-status">${e.status === "Published" ? "Published" : "Draft"}</strong>
             <div class="event-date">${esc(fmt(e.start))}</div>
             <h2>${esc(e.title)}</h2>
             ${
@@ -107,9 +110,11 @@ function render() {
 }
 
 function openEditor(e = null) {
+  editorStatus = e?.status === "Published" ? "Published" : "Draft";
   document.querySelector("#editorError").hidden = true;
-  document.querySelector("#editorStatus").textContent =
-    e?.status === "Published" ? "Published" : "Draft";
+  document.querySelector("#editorStatus").textContent = editorStatus;
+  document.querySelector("#publishEvent").textContent =
+    editorStatus === "Published" ? "Save Changes" : "Publish";
   document.querySelector("#dialogTitle").textContent = e
     ? "Edit event"
     : "Add event";
@@ -188,8 +193,10 @@ eventsEl.addEventListener("click", e => {
 
 form.addEventListener("submit", async e => {
   e.preventDefault();
+  if (saving) return;
 
   const id = document.querySelector("#eventId").value;
+  const status = e.submitter?.value === "Published" ? "Published" : "Draft";
 
   const errorEl = document.querySelector("#editorError");
   errorEl.hidden = true;
@@ -201,11 +208,17 @@ form.addEventListener("submit", async e => {
     return;
   }
 
+  if (id && editorStatus === "Published" && status === "Draft" &&
+      !window.confirm("Save as draft and remove this event from the public calendar? It will no longer be featured.")) {
+    return;
+  }
+
   const payload = {
     id,
+    status,
     title: document.querySelector("#title").value.trim(),
     type: document.querySelector("#type").value,
-    featured: document.querySelector("#featured").checked,
+    featured: status === "Published" && document.querySelector("#featured").checked,
     hoverText: document.querySelector("#hoverText").value.trim() || null,
     start: start.toISOString(),
     end: end.toISOString(),
@@ -213,20 +226,30 @@ form.addEventListener("submit", async e => {
     description: document.querySelector("#description").value.trim()
   };
 
+  saving = true;
+  const buttons = form.querySelectorAll("button");
+  buttons.forEach(button => { button.disabled = true; });
   try {
     await api(id ? "updateEvent" : "createEvent", payload);
 
     dialog.close();
 
     showStatus(
-      id ? "Event updated." : "Event created.",
+      status === "Draft" ? "Event saved as draft." : "Event published.",
       "success"
     );
 
     await loadEvents();
   } catch (err) {
     await handleError(err, errorEl);
+  } finally {
+    saving = false;
+    buttons.forEach(button => { button.disabled = false; });
   }
+});
+
+dialog.addEventListener("cancel", e => {
+  if (saving) e.preventDefault();
 });
 
 document.querySelector("#cancelDelete").onclick = () => deleteDialog.close();

@@ -2,3 +2,4 @@
 
 .checkbox-label{display:flex;align-items:center;gap:10px}.checkbox-label input{width:auto;accent-color:var(--green)}
 .editor-status{display:block;font-size:1.1rem;font-weight:800;margin-bottom:6px}
+.event-status{display:block;font-weight:800;margin-bottom:8px}.dialog-actions{flex-wrap:wrap}button:disabled{opacity:.6;cursor:wait}
