@@ -213,3 +213,11 @@ A stronger alternative would be local JWT signature verification against Google'
 - The static site must never contain `SERVICE_ACCOUNT_KEY`.
 - Apps Script web apps cannot reliably set arbitrary CORS headers. The frontend uses `text/plain` requests so the browser can avoid a preflight request in normal usage.
 - `doGet()` is only a non-sensitive health check and does not expose configuration or authorization data.
+
+## Canonical KCW model
+
+Create and update accept these schedule fields: `id`, `type`, `title`, `description`, `date`, `startTime`, `endTime`, `timezone`, `allDay`, `location`, `address`, `directions`, `status`. Event metadata fields are `eventTitle`, `learningTopic`, `learningOutcome`, `format`, `speaker`, `speakerRole`, `speakerUrl`, `image`, `imageAlt`, `hoverText`, `featured`, `featureStart`, `featureEnd`. Updates preserve omitted fields. Responses include all canonical fields plus derived `state`, `startDateTime`, and `endDateTime`; `start` and `end` remain compatibility aliases for the current editor.
+
+New input without status defaults to `Draft`. Only legacy Calendar events without a KCW metadata block default to `Published`. `state` is calculated from the event end instant on each read: `Archived` at or after the end, otherwise `Upcoming`. Derived fields supplied by clients are ignored and never stored.
+
+KCW-specific values are serialized as JSON between `[KCW_METADATA]` and `[/KCW_METADATA]` after the human-readable Google Calendar description. The returned description excludes this block. Timed input uses the supplied timezone (defaulting to the calendar timezone); all-day events use the calendar timezone and an exclusive next-day end. The current schedule model supports single-day input.

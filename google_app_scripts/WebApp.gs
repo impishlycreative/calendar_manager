@@ -496,12 +496,24 @@ function buildSafeListOptions_(data) {
 }
 
 
+const KCW_EVENT_FIELDS = ["id","type","title","description","date","startTime","endTime","timezone","allDay","location","address","directions","status","eventTitle","learningTopic","learningOutcome","format","speaker","speakerRole","speakerUrl","image","imageAlt","hoverText","featured","featureStart","featureEnd"];
+
 function toCalendarManagerEvent_(manager, data, existing) {
 
   requireObject_(
     data,
     "Event data is required."
   );
+
+  const event = {};
+  KCW_EVENT_FIELDS.forEach(key => {
+    if (existing && existing[key] !== undefined) event[key] = existing[key];
+    if (data[key] !== undefined) event[key] = data[key];
+  });
+
+  // Canonical input passes through the manager's field validation.
+  // Retain start/end support for the existing editor.
+  if (data.start === undefined && data.end === undefined) return event;
 
   const start =
     parseIsoDate_(
@@ -538,7 +550,7 @@ function toCalendarManagerEvent_(manager, data, existing) {
 
   return Object.assign(
     {},
-    existing || {},
+    event,
     {
       title: title,
       description:
@@ -580,14 +592,13 @@ function toCalendarManagerEvent_(manager, data, existing) {
 
 
 function toClientEvent_(event) {
-  return {
-    id: event.id,
-    title: event.title,
-    start: event.startDateTime,
-    end: event.endDateTime,
-    location: event.location || "",
-    description: event.description || ""
-  };
+  const result = {};
+  KCW_EVENT_FIELDS.concat(["state", "startDateTime", "endDateTime"])
+    .forEach(key => { result[key] = event[key]; });
+  // Compatibility aliases for the existing editor.
+  result.start = event.startDateTime;
+  result.end = event.endDateTime;
+  return result;
 }
 
 
@@ -840,6 +851,7 @@ function buildErrorResponse_(error) {
     if (
       error.message.indexOf("Unable to ") !== -1
     ) {
+      console.error(error.message);
       return {
         ok: false,
         code: "INTERNAL_ERROR",
@@ -850,7 +862,11 @@ function buildErrorResponse_(error) {
     return {
       ok: false,
       code: "INVALID_REQUEST",
-      message: "The request data is invalid."
+      message: ({
+        "CalendarManager: endTime must be later than startTime.": "End time must be later than start time on the same calendar day.",
+        "CalendarManager: imageAlt is required when image is provided.": "Add image description text when supplying an image.",
+        "CalendarManager: featureEnd cannot occur before featureStart.": "The feature end date must be on or after the feature start date."
+      })[error.message] || "The event data is invalid. Check the dates, times, and required fields."
     };
   }
 

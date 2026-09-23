@@ -10,7 +10,7 @@ export const firebaseConfig = {
 
 // Apps Script Web App endpoint. The backend must verify the Firebase ID token
 // and authorize the user before performing any calendar operation.
-export const API_URL = "PASTE_APPS_SCRIPT_WEB_APP_URL";
+export const API_URL = "https://script.google.com/macros/s/AKfycbyvxfJniOdH81RLvZT2_0_yicxGIcrlTUuTvzXw96u0qnVUQ5ZllW84JvsnsY4DD0jh/exec";
 
 // Force a fresh sign-in after one hour in this application.
 export const APP_SESSION_MS = 60 * 60 * 1000;

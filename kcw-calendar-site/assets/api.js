@@ -14,6 +14,10 @@ export async function api(action, data = {}) {
   const response = await fetch(API_URL, {method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, body:JSON.stringify({action, token, data})});
   if (!response.ok) throw new Error(`HTTP_${response.status}`);
   const result = await response.json();
-  if (!result.ok) throw new Error(result.code || result.message || "REQUEST_FAILED");
+  if (!result.ok) {
+    const error = new Error(result.message || "The request failed.");
+    error.code = result.code || "REQUEST_FAILED";
+    throw error;
+  }
   return result;
 }

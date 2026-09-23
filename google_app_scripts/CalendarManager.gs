@@ -961,8 +961,9 @@ class CalendarManager {
 
       status:
         this._validateStatus_(
-          metadata.status ||
-          "Published"
+          metadata.status === undefined
+            ? (/\[KCW_METADATA\]/i.test(raw.description || "") ? "Draft" : "Published")
+            : metadata.status
         ),
 
 
@@ -1263,7 +1264,7 @@ class CalendarManager {
     };
 
     let result =
-      event.description || "";
+      this._removeMetadataFromDescription_(event.description || "");
 
     if (result) {
       result += "\n\n";
@@ -1346,11 +1347,12 @@ class CalendarManager {
       dateTime:
         this._buildRfc3339DateTime_(
           event.date,
-          event.startTime
+          event.startTime,
+          event.timezone
         ),
 
       timeZone:
-        this.timezone
+        event.timezone
     };
 
     googleEvent.end = {
@@ -1358,11 +1360,12 @@ class CalendarManager {
       dateTime:
         this._buildRfc3339DateTime_(
           event.date,
-          event.endTime
+          event.endTime,
+          event.timezone
         ),
 
       timeZone:
-        this.timezone
+        event.timezone
     };
 
     return googleEvent;
@@ -1426,12 +1429,10 @@ class CalendarManager {
           true,
 
         startDateTime:
-          startDate +
-          "T00:00:00",
+          this._buildRfc3339DateTime_(startDate, "00:00"),
 
         endDateTime:
-          googleExclusiveEnd +
-          "T00:00:00"
+          this._buildRfc3339DateTime_(googleExclusiveEnd, "00:00")
       };
     }
 
@@ -1474,21 +1475,21 @@ class CalendarManager {
       date:
         Utilities.formatDate(
           start,
-          this.timezone,
+          raw.start.timeZone || this.timezone,
           "yyyy-MM-dd"
         ),
 
       startTime:
         Utilities.formatDate(
           start,
-          this.timezone,
+          raw.start.timeZone || this.timezone,
           "HH:mm"
         ),
 
       endTime:
         Utilities.formatDate(
           end,
-          this.timezone,
+          raw.start.timeZone || this.timezone,
           "HH:mm"
         ),
 
@@ -1515,7 +1516,7 @@ class CalendarManager {
    * @param {string} time
    * @return {string}
    */
-  _buildRfc3339DateTime_(date, time) {
+  _buildRfc3339DateTime_(date, time, timezone) {
 
     this._validateDate_(
       date
@@ -1528,7 +1529,7 @@ class CalendarManager {
     const parsed =
       Utilities.parseDate(
         date + " " + time,
-        this.timezone,
+        timezone || this.timezone,
         "yyyy-MM-dd HH:mm"
       );
 
@@ -1613,7 +1614,7 @@ class CalendarManager {
     }
 
     return (
-      end.getTime() < Date.now()
+      end.getTime() <= Date.now()
         ? "Archived"
         : "Upcoming"
     );
@@ -1695,7 +1696,7 @@ class CalendarManager {
             ),
 
       timezone:
-        this.timezone,
+        this._validateTimezone_(data.timezone || this.timezone),
 
       allDay:
         allDay,
@@ -1722,7 +1723,7 @@ class CalendarManager {
 
       status:
         this._validateStatus_(
-          data.status || "Draft"
+          data.status === undefined ? "Draft" : data.status
         ),
 
 
@@ -1857,18 +1858,9 @@ class CalendarManager {
     if (event.featured) {
 
       if (
-        !event.featureStart ||
-        !event.featureEnd
-      ) {
-
-        throw new Error(
-          "CalendarManager: Featured events require featureStart and featureEnd."
-        );
-      }
-
-      if (
-        event.featureEnd <
-        event.featureStart
+        event.featureStart &&
+        event.featureEnd &&
+        event.featureEnd < event.featureStart
       ) {
 
         throw new Error(
