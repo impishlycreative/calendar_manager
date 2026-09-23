@@ -108,6 +108,8 @@ function render() {
 
 function openEditor(e = null) {
   document.querySelector("#editorError").hidden = true;
+  document.querySelector("#editorStatus").textContent =
+    e?.status === "Published" ? "Published" : "Draft";
   document.querySelector("#dialogTitle").textContent = e
     ? "Edit event"
     : "Add event";
