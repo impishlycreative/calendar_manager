@@ -1036,10 +1036,10 @@ class CalendarManager {
 
       hoverText:
         this._validateText_(
-          metadata.hoverText,
+          metadata.hoverText ?? "",
           500,
           true
-        ),
+        ) || null,
 
       featured:
         this._validateBoolean_(
@@ -1243,7 +1243,7 @@ class CalendarManager {
         event.imageAlt || "",
 
       hoverText:
-        event.hoverText || "",
+        event.hoverText || null,
 
       address:
         event.address || "",
@@ -1794,10 +1794,10 @@ class CalendarManager {
 
       hoverText:
         this._validateText_(
-          data.hoverText,
+          data.hoverText ?? "",
           500,
           true
-        ),
+        ) || null,
 
       featured:
         this._validateBoolean_(

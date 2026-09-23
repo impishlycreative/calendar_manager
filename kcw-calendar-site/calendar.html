@@ -52,6 +52,13 @@
         <input type="hidden" id="eventId">
 
         <label>
+          Type
+          <select id="type" required>
+            <option value="Meeting">Meeting</option>
+            <option value="Contest">Contest</option>
+            <option value="Other">Other</option>
+          </select>
+        </label>        <label>
           Title
           <input id="title" maxlength="160" required>
         </label>
@@ -70,15 +77,27 @@
 
         <label>
           Location
-          <input id="location" maxlength="250">
+          <select id="location" required>
+            <option value="" disabled selected>Select a location</option>
+            <option value="Tallman room">Tallman room</option>
+            <option value="Virtual">Virtual</option>
+          </select>
+        </label>
+
+        <label class="checkbox-label">
+          <input id="featured" type="checkbox">
+          Featured? (checked: Yes, unchecked: No)
+        </label>
+
+        <label>
+          Hover text
+          <input id="hoverText" maxlength="500">
         </label>
 
         <label>
           Description
           <textarea id="description" rows="6" maxlength="5000"></textarea>
-        </label>
-
-        <div class="dialog-actions">
+        </label>        <div class="dialog-actions">
           <button type="button" id="cancelButton" class="secondary">
             Cancel
           </button>

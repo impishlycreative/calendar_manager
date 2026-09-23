@@ -114,6 +114,9 @@ function openEditor(e = null) {
 
   document.querySelector("#eventId").value = e?.id || "";
   document.querySelector("#title").value = e?.title || "";
+  document.querySelector("#type").value = e?.type || "Meeting";
+  document.querySelector("#featured").checked = e?.featured === true;
+  document.querySelector("#hoverText").value = e?.hoverText || "";
   document.querySelector("#start").value = toLocal(e?.start);
   document.querySelector("#end").value = toLocal(e?.end);
   document.querySelector("#location").value = e?.location || "";
@@ -199,6 +202,9 @@ form.addEventListener("submit", async e => {
   const payload = {
     id,
     title: document.querySelector("#title").value.trim(),
+    type: document.querySelector("#type").value,
+    featured: document.querySelector("#featured").checked,
+    hoverText: document.querySelector("#hoverText").value.trim() || null,
     start: start.toISOString(),
     end: end.toISOString(),
     location: document.querySelector("#location").value.trim(),
