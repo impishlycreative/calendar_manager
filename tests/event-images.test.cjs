@@ -22,8 +22,8 @@ test('missing configuration and invalid images never upload',()=>{
  assert.throws(()=>ctx.uploadEventImage_({...image,content:'YWJj'}),e=>e.code==='INVALID_REQUEST');
  assert.equal(calls.length,0);
 });
-test('upload uses configured branch and returns public image URL',()=>{
- const {ctx,calls}=backend(props);assert.equal(ctx.uploadEventImage_(image),'https://example.com/images/events/event_123.png');
+test('upload returns a page-relative image path, ignoring the old public base setting',()=>{
+ const {ctx,calls}=backend(props);assert.equal(ctx.uploadEventImage_(image),'images/event_123.png');
  assert.equal(JSON.parse(calls[1].options.payload).branch,'main');assert.equal(calls[1].options.method,'put');
 });
 test('existing different image is never overwritten',()=>{
@@ -32,7 +32,7 @@ test('existing different image is never overwritten',()=>{
 test('local staging restores per event, survives failed upload, and clears after success',async()=>{
  const elements = new Map();
  global.crypto = crypto.webcrypto;
- global.document={querySelector:id=>{if(!elements.has(id))elements.set(id,{value:'',addEventListener(){},removeAttribute(){}});return elements.get(id)}};
+ global.document={baseURI:'https://impishlycreative.github.io/calendar_manager/kcw-calendar-site/calendar.html',querySelector:id=>{if(!elements.has(id))elements.set(id,{value:'',addEventListener(){},removeAttribute(){}});return elements.get(id)}};
  const storage = new Map();global.localStorage={getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v),removeItem:k=>storage.delete(k)};
  const module = await import('data:text/javascript;base64,'+Buffer.from(fs.readFileSync('kcw-calendar-site/assets/event-image.js','utf8')).toString('base64'));
  const key='kcw:event-image:v1:user:event';storage.set(key,JSON.stringify({...image,dataUrl:'data:image/png;base64,'+image.content,imageAlt:'Writing group'}));
@@ -64,6 +64,29 @@ test('local staging restores per event, survives failed upload, and clears after
  assert.equal(elements.get('#imageFilename').value,'event_123.png');
  const resaved=await editor.forSave(async()=>{throw new Error('Should not upload again')});
  assert.equal(resaved.imageFilename,'event_123.png');
+ const relative = 'images/event_123.png';
+ for (const base of [
+   'https://impishlycreative.github.io/calendar_manager/kcw-calendar-site/calendar.html',
+   'https://kemptvillecw.github.io/dev/',
+   'https://www.kemptvillecreativewriters.com/',
+   'http://localhost:8080/calendar.html'
+ ]) {
+   document.baseURI = base;
+   editor.open({id:'relative',image:relative,imageAlt:'Writing group'});
+   assert.equal(elements.get('#imageThumbnail').src,relative);
+   assert.equal(elements.get('#imageFilename').value,'event_123.png');
+   assert.equal(module.safeImageUrl(relative),relative);
+   assert.equal(new URL(module.safeImageUrl(relative),base).href,base.replace(/calendar\.html$/, '') + relative);
+   assert.equal((await editor.forSave(async()=>{throw new Error('No upload needed')})).image,relative);
+ }
+ storage.set(key,JSON.stringify({...image,dataUrl:'data:image/png;base64,'+image.content,imageAlt:'Writing group'}));
+ editor.open({id:'event'});
+ await assert.rejects(editor.forSave(async()=>({image:'javascript:alert(1)'})));
+ assert(storage.has(key));
+ assert.equal((await editor.forSave(async()=>({image:relative}))).image,relative);
+ for (const unsafe of ['//other.example/image.png','images/../secret.png','images/evil.svg','http://other.example/image.png']) {
+   assert.equal(module.safeImageUrl(unsafe),'');
+ }
 });
 
 

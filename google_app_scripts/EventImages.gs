@@ -22,10 +22,8 @@ function uploadEventImage_(data) {
   const branch = prop("IMAGE_GITHUB_BRANCH") || "main";
   const folder = prop("IMAGE_GITHUB_FOLDER") || "kcw-calendar-site/images";
   const token = prop("IMAGE_GITHUB_TOKEN");
-  const publicBase = prop("IMAGE_PUBLIC_BASE_URL") || "https://raw.githubusercontent.com/impishlycreative/calendar_manager/main/kcw-calendar-site/images/";
   if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repo) || !branch || !token ||
-      !folder || folder.split("/").some(p => !/^[A-Za-z0-9_-]+$/.test(p)) ||
-      !/^https:\/\/[^\s?#]+\/$/.test(publicBase)) {
+      !folder || folder.split("/").some(p => !/^[A-Za-z0-9_-]+$/.test(p))) {
     throw new WebAppError("IMAGE_UPLOAD_NOT_CONFIGURED", "GitHub image uploads are not configured yet. Your image remains stored in this browser.");
   }
   const path = folder + "/" + data.filename;
@@ -46,6 +44,5 @@ function uploadEventImage_(data) {
   } else {
     throw new WebAppError("IMAGE_UPLOAD_FAILED", "GitHub could not be reached or access was denied. Your local image is retained.");
   }
-  return publicBase + encodeURIComponent(data.filename);
+  return "images/" + data.filename;
 }
-

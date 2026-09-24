@@ -3,9 +3,11 @@ const prefix = "kcw:event-image:v1:";
 const types = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
 export const safeImageUrl = value => {
   if (!value) return "";
+  // Keep page-relative paths intact: the browser supplies the site's directory.
+  if (/^images\/[A-Za-z0-9_-]+\.(jpg|png|webp)$/.test(value)) return value;
   if (/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(value)) return value;
   try {
-    const url = new URL(value, "https://www.kemptvillecreativewriters.com/");
+    const url = new URL(value);
     return url.protocol === "https:" ? url.href : "";
   } catch { return ""; }
 };
@@ -33,7 +35,7 @@ export function createImageEditor(userId) {
     if (src) thumbnail.src = src; else thumbnail.removeAttribute("src");
     thumbnail.hidden = !src;
     thumbnail.alt = alt.value;
-    filename.value = pending?.filename || existing.imageFilename || (src ? new URL(src).pathname.split("/").pop() : "");
+    filename.value = pending?.filename || existing.imageFilename || (src ? new URL(src, document.baseURI).pathname.split("/").pop() : "");
     selection.textContent = pending ? `Selected image: ${pending.originalName || pending.filename} (stored in this browser)` : src ? `Saved image: ${filename.value}` : "No image selected.";
     choose.textContent = src ? "Replace image" : "Choose image";
     filename.disabled = !src;
@@ -125,7 +127,8 @@ export function createImageEditor(userId) {
             filename.value = next.filename;
           }
         }
-        if (!result.image || !safeImageUrl(result.image).startsWith("https:")) throw new Error("The upload did not return an image address. Your image is still stored in this browser.");
+        const address = safeImageUrl(result.image);
+        if (!address || address.startsWith("data:")) throw new Error("The upload did not return an image address. Your image is still stored in this browser.");
         return {image: result.image, imageFilename: pending.filename, imageAlt: alt.value.trim()};
       }
       return {image: existing.image || "", imageFilename: filename.value, imageAlt: alt.value.trim()};
@@ -136,5 +139,4 @@ export function createImageEditor(userId) {
     }
   };
 }
-
 
