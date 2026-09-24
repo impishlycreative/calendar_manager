@@ -1,0 +1,47 @@
+name: Sync KCW images to mainsite dev
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "kcw-calendar-site/images/**"
+
+  workflow_dispatch:
+
+jobs:
+  sync-images:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout calendar-manager
+        uses: actions/checkout@v4
+
+      - name: Checkout KCW mainsite dev
+        uses: actions/checkout@v4
+        with:
+          repository: kemptvillecw/mainsite
+          ref: dev
+          token: ${{ secrets.MAINSITE_SYNC_TOKEN }}
+          path: mainsite
+
+      - name: Copy images to mainsite
+        run: |
+          mkdir -p mainsite/images
+          cp -R kcw-calendar-site/images/. mainsite/images/
+
+      - name: Commit and push changes
+        working-directory: mainsite
+        run: |
+          git config user.name "KCW Calendar Manager"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add images/
+
+          if git diff --cached --quiet; then
+            echo "No image changes to commit."
+            exit 0
+          fi
+
+          git commit -m "Sync images from Calendar Manager"
+          git push origin dev
