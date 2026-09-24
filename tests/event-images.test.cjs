@@ -38,8 +38,13 @@ test('local staging restores per event, survives failed upload, and clears after
  const key='kcw:event-image:v1:user:event';storage.set(key,JSON.stringify({...image,dataUrl:'data:image/png;base64,'+image.content,imageAlt:'Writing group'}));
  const editor=module.createImageEditor(()=> 'user');editor.open({id:'event'});
  assert.equal(editor.preview().imageAlt,'Writing group');
+ editor.open({id:'event'});
+ assert.equal(elements.get('#imageFilename').value,'event_123.png');
+ assert.match(elements.get('#imageSelection').textContent,/Selected image: event_123.png/);
+ assert.equal(elements.get('#chooseImage').textContent,'Replace image');
  await assert.rejects(editor.forSave(async()=>{throw new Error('offline')}));assert(storage.has(key));
  const fields=await editor.forSave(async(action)=>{assert.equal(action,'uploadEventImage');return {image:'https://example.com/image.png'}});
+ assert.equal(fields.imageFilename,'event_123.png');
  assert.equal(fields.image,'https://example.com/image.png');assert(storage.has(key));
  let attempts=0;
  await editor.forSave(async(action,data)=>{
@@ -51,6 +56,28 @@ test('local staging restores per event, survives failed upload, and clears after
  editor.saved();assert(!storage.has(key));
  editor.open({id:'other'});assert.equal(editor.preview().image,'');
  assert.equal(module.safeImageUrl('javascript:alert(1)'),'');
+ assert.equal(elements.get('#imageSelection').textContent,'No image selected.');
+ editor.open({id:'saved',image:'https://example.com/event_456.png',imageAlt:'Saved image'});
+ assert.equal(elements.get('#imageFilename').value,'event_456.png');
+ assert.equal(elements.get('#imageSelection').textContent,'Saved image: event_456.png');
+ editor.open({id:'saved',...fields});
+ assert.equal(elements.get('#imageFilename').value,'event_123.png');
+ const resaved=await editor.forSave(async()=>{throw new Error('Should not upload again')});
+ assert.equal(resaved.imageFilename,'event_123.png');
 });
 
 
+
+test('Draft and Publish save the actual Featured checkbox value',async()=>{
+ const code=fs.readFileSync('kcw-calendar-site/assets/calendar.js','utf8');
+ const handler=code.slice(code.indexOf('form.addEventListener("submit"'),code.indexOf('dialog.addEventListener("cancel"'));
+ for(const status of ['Draft','Published']) for(const checked of [true,false]) {
+  const values={'#eventId':'existing','#start':'2026-09-24T18:00','#end':'2026-09-24T19:00','#title':'Meeting','#type':'Meeting','#location':'Virtual','#description':'Text','#hoverText':''};
+  const fields={}; for(const [id,value] of Object.entries(values))fields[id]={value};fields['#featured']={checked};fields['#editorError']={};
+  let submit, saved;
+  const ctx={form:{addEventListener:(type,fn)=>submit=fn,querySelectorAll:()=>[]},document:{querySelector:id=>fields[id]},saving:false,editorStatus:'Published',window:{confirm:()=>true},imageEditor:{forSave:async()=>({}),saved:()=>true},api:async(action,payload)=>{saved=payload},dialog:{close(){}},showStatus(){},loadEvents:async()=>{},handleError:async(error)=>{throw error}};
+  vm.createContext(ctx);vm.runInContext(handler,ctx);
+  await submit({preventDefault(){},submitter:{value:status}});
+  assert.equal(saved.featured,checked);assert.equal(saved.status,status);
+ }
+});

@@ -500,7 +500,7 @@ function buildSafeListOptions_(data) {
 }
 
 
-const KCW_EVENT_FIELDS = ["id","type","title","description","date","startTime","endTime","timezone","allDay","location","address","directions","status","eventTitle","learningTopic","learningOutcome","format","speaker","speakerRole","speakerUrl","image","imageAlt","hoverText","featured","featureStart","featureEnd"];
+const KCW_EVENT_FIELDS = ["id","type","title","description","date","startTime","endTime","timezone","allDay","location","address","directions","status","eventTitle","learningTopic","learningOutcome","format","speaker","speakerRole","speakerUrl","image","imageFilename","imageAlt","hoverText","featured","featureStart","featureEnd"];
 
 function toCalendarManagerEvent_(manager, data, existing) {
 

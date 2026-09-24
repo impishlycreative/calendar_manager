@@ -1027,6 +1027,8 @@ class CalendarManager {
           true
         ),
 
+      imageFilename: this._validateText_(metadata.imageFilename, 105, true),
+
       imageAlt:
         this._validateText_(
           metadata.imageAlt,
@@ -1238,6 +1240,8 @@ class CalendarManager {
 
       image:
         event.image || "",
+
+      imageFilename: event.imageFilename || "",
 
       imageAlt:
         event.imageAlt || "",
@@ -1784,6 +1788,8 @@ class CalendarManager {
           data.image,
           true
         ),
+
+      imageFilename: this._validateText_(data.imageFilename, 105, true),
 
       imageAlt:
         this._validateText_(
