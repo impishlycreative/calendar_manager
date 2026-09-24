@@ -22,7 +22,7 @@ jobs:
         with:
           repository: kemptvillecw/mainsite
           ref: dev
-          token: ${{ secrets.MAINSITE_SYNC_TOKEN }}
+          token: ${{ secrets.TARGET_TOKEN }}
           path: mainsite
 
       - name: Copy images to mainsite
