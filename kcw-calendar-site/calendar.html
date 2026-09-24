@@ -100,15 +100,38 @@
         <label>
           Description
           <textarea id="description" rows="6" maxlength="5000"></textarea>
-        </label>        <div class="dialog-actions">
+        </label>
+        <fieldset class="image-editor">
+          <legend>Event image</legend>
+          <label>Choose image<input id="imageFile" type="file" accept="image/jpeg,image/png,image/webp" aria-describedby="imageNotice"></label>
+          <p id="imageNotice" class="help" role="status"></p>
+          <img id="imageThumbnail" class="image-thumbnail" alt="" hidden>
+          <label>Automatic filename<input id="imageFilename" maxlength="105" readonly disabled></label>
+          <label>Image description<input id="imageAlt" maxlength="500" placeholder="Describe the image for people who cannot see it"></label>
+          <button type="button" id="discardImage" class="secondary" hidden>Discard pending image</button>
+        </fieldset>
+        <div class="dialog-actions">
           <button type="button" id="cancelButton" class="secondary">
             Cancel
           </button>
           <button type="submit" id="saveDraft" value="Draft" class="secondary">Save as Draft</button>
+          <button type="button" id="previewEditor" class="secondary">Preview</button>
           <button type="submit" id="publishEvent" value="Published" class="primary">Publish</button>
         </div>
       </form>
     </dialog>
+
+    <dialog id="previewDialog" aria-labelledby="previewTitle" aria-describedby="previewNote">
+      <div class="confirm">
+        <div class="dialog-head">
+          <h2 id="previewTitle">Event preview</h2>
+          <button type="button" id="closePreview" class="icon-button" aria-label="Close preview" autofocus>×</button>
+        </div>
+        <p id="previewNote" class="help">Preview only — nothing is saved or published.</p>
+        <div id="previewContent"></div>
+      </div>
+    </dialog>
+    <div id="hoverPreview" class="hover-preview" role="tooltip" hidden></div>
 
     <dialog id="deleteDialog">
       <div class="confirm">

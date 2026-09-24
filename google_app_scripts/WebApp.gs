@@ -5,6 +5,7 @@ const KCW_ALLOWED_ACTIONS = {
   listEvents: true,
   createEvent: true,
   updateEvent: true,
+  uploadEventImage: true,
   deleteEvent: true
 };
 
@@ -64,6 +65,9 @@ function doPost(e) {
 
       case "updateEvent":
         return handleUpdateEvent_(request);
+
+      case "uploadEventImage":
+        return jsonResponse_({ ok: true, image: uploadEventImage_(request.data) });
 
       case "deleteEvent":
         return handleDeleteEvent_(request);
