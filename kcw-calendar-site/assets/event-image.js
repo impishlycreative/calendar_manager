@@ -14,6 +14,9 @@ const newFilename = extension => `event_${Date.now()}${crypto.getRandomValues(ne
 
 export function createImageEditor(userId) {
   const file = document.querySelector("#imageFile");
+  const choose = document.querySelector("#chooseImage");
+  const selection = document.querySelector("#imageSelection");
+  choose.onclick = () => file.click();
   const filename = document.querySelector("#imageFilename");
   const alt = document.querySelector("#imageAlt");
   const thumbnail = document.querySelector("#imageThumbnail");
@@ -30,8 +33,10 @@ export function createImageEditor(userId) {
     if (src) thumbnail.src = src; else thumbnail.removeAttribute("src");
     thumbnail.hidden = !src;
     thumbnail.alt = alt.value;
-    filename.value = pending?.filename || "";
-    filename.disabled = !pending;
+    filename.value = pending?.filename || existing.imageFilename || (src ? new URL(src).pathname.split("/").pop() : "");
+    selection.textContent = pending ? `Selected image: ${pending.originalName || pending.filename} (stored in this browser)` : src ? `Saved image: ${filename.value}` : "No image selected.";
+    choose.textContent = src ? "Replace image" : "Choose image";
+    filename.disabled = !src;
     discard.hidden = !pending;
     message(pending ? "Image kept in this browser. It will upload to GitHub when you save as draft or publish." : "Choose a JPEG, PNG, or WebP image up to 2 MB. Images stay in this browser until uploaded on save.");
   };
@@ -53,7 +58,7 @@ export function createImageEditor(userId) {
       await image.decode();
       if (version !== generation) return;
       const generatedName = newFilename(types[selected.type]);
-      const next = { dataUrl, filename: generatedName, imageAlt: alt.value, mimeType: selected.type };
+      const next = { dataUrl, filename: generatedName, originalName: selected.name, imageAlt: alt.value, mimeType: selected.type };
       persist(next);
       pending = next;
       draw();
@@ -121,9 +126,9 @@ export function createImageEditor(userId) {
           }
         }
         if (!result.image || !safeImageUrl(result.image).startsWith("https:")) throw new Error("The upload did not return an image address. Your image is still stored in this browser.");
-        return {image: result.image, imageAlt: alt.value.trim()};
+        return {image: result.image, imageFilename: pending.filename, imageAlt: alt.value.trim()};
       }
-      return {image: existing.image || "", imageAlt: alt.value.trim()};
+      return {image: existing.image || "", imageFilename: filename.value, imageAlt: alt.value.trim()};
     },
     saved() {
       try { localStorage.removeItem(key); pending = null; return true; }

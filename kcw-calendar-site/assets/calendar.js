@@ -316,7 +316,7 @@ form.addEventListener("submit", async e => {
   }
 
   if (id && editorStatus === "Published" && status === "Draft" &&
-      !window.confirm("Save as draft and remove this event from the public calendar? It will no longer be featured.")) {
+      !window.confirm("Save as draft and remove this event from the public calendar? It will not appear publicly until published again. Your Featured setting will be kept.")) {
     return;
   }
 
@@ -325,7 +325,7 @@ form.addEventListener("submit", async e => {
     status,
     title: document.querySelector("#title").value.trim(),
     type: document.querySelector("#type").value,
-    featured: status === "Published" && document.querySelector("#featured").checked,
+    featured: document.querySelector("#featured").checked,
     hoverText: document.querySelector("#hoverText").value.trim() || null,
     start: start.toISOString(),
     end: end.toISOString(),

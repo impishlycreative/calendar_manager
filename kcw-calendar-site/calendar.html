@@ -103,7 +103,9 @@
         </label>
         <fieldset class="image-editor">
           <legend>Event image</legend>
-          <label>Choose image<input id="imageFile" type="file" accept="image/jpeg,image/png,image/webp" aria-describedby="imageNotice"></label>
+          <input id="imageFile" type="file" accept="image/jpeg,image/png,image/webp" hidden>
+          <button id="chooseImage" type="button" class="secondary" aria-describedby="imageSelection imageNotice">Choose image</button>
+          <p id="imageSelection" class="help" role="status">No image selected.</p>
           <p id="imageNotice" class="help" role="status"></p>
           <img id="imageThumbnail" class="image-thumbnail" alt="" hidden>
           <label>Automatic filename<input id="imageFilename" maxlength="105" readonly disabled></label>
