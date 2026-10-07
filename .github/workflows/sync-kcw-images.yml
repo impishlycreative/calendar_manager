@@ -9,6 +9,10 @@ on:
 
   workflow_dispatch:
 
+concurrency:
+  group: sync-kcw-mainsite-dev
+  cancel-in-progress: false
+
 jobs:
   sync-images:
     runs-on: ubuntu-latest
@@ -44,4 +48,5 @@ jobs:
           fi
 
           git commit -m "Sync images from Calendar Manager"
+          git pull --rebase origin dev
           git push origin dev
