@@ -339,14 +339,22 @@ form.addEventListener("submit", async e => {
   buttons.forEach(button => { button.disabled = true; });
   try {
     Object.assign(payload, await imageEditor.forSave(api));
-    await api(id ? "updateEvent" : "createEvent", payload);
+    const result = await api(id ? "updateEvent" : "createEvent", payload);
     const clearedImage = imageEditor.saved();
 
     dialog.close();
 
+    const shareFailed = result?.share?.ok === false;
+    const shareMessage = shareFailed
+      ? " Facebook sharing file could not be published; save the event again to retry."
+      : (status === "Published" && result?.share?.ok === true
+          ? " Facebook sharing file created for site sync."
+          : "");
     showStatus(
-      (status === "Draft" ? "Event saved as draft." : "Event published.") + (clearedImage ? "" : " The local image copy could not be cleared from browser storage."),
-      "success"
+      (status === "Draft" ? "Event saved as draft." : "Event published.") +
+        shareMessage +
+        (clearedImage ? "" : " The local image copy could not be cleared from browser storage."),
+      shareFailed ? "error-box" : "success"
     );
 
     await loadEvents();
@@ -369,10 +377,16 @@ document.querySelector("#cancelDelete").onclick = () => deleteDialog.close();
 
 document.querySelector("#confirmDelete").onclick = async () => {
   try {
-    await api("deleteEvent", { id: deleteId });
+    const result = await api("deleteEvent", { id: deleteId });
 
     deleteDialog.close();
-    showStatus("Event deleted.", "success");
+    const shareFailed = result?.share?.ok === false;
+    showStatus(
+      shareFailed
+        ? "Event deleted, but its old Facebook share link could not be retired."
+        : "Event deleted.",
+      shareFailed ? "error-box" : "success"
+    );
 
     await loadEvents();
   } catch (e) {

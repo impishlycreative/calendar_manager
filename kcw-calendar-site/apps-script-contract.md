@@ -221,3 +221,39 @@ Create and update accept these schedule fields: `id`, `type`, `title`, `descript
 New input without status defaults to `Draft`. Only legacy Calendar events without a KCW metadata block default to `Published`. `state` is calculated from the event end instant on each read: `Archived` at or after the end, otherwise `Upcoming`. Derived fields supplied by clients are ignored and never stored.
 
 KCW-specific values are serialized as JSON between `[KCW_METADATA]` and `[/KCW_METADATA]` after the human-readable Google Calendar description. The returned description excludes this block. Timed input uses the supplied timezone (defaulting to the calendar timezone); all-day events use the calendar timezone and an exclusive next-day end. The current schedule model supports single-day input.
+
+
+## Facebook event share artifact result
+
+`createEvent`, `updateEvent`, and `deleteEvent` may include a `share` object while still returning `ok: true` for the calendar mutation itself.
+
+Example successful publish:
+
+```json
+{
+  "ok": true,
+  "event": { "id": "..." },
+  "share": {
+    "ok": true,
+    "state": "created",
+    "path": "kcw-calendar-site/share/events/<event-id>.html",
+    "url": "https://www.kemptvillecreativewriters.com/share/events/<event-id>.html"
+  }
+}
+```
+
+A partial failure is reported without rolling back the Google Calendar save:
+
+```json
+{
+  "ok": true,
+  "event": { "id": "..." },
+  "share": {
+    "ok": false,
+    "code": "SHARE_PUBLISH_FAILED",
+    "message": "The event was saved, but its Facebook share file could not be published."
+  }
+}
+```
+
+Saving a Draft does not create a share file. If a share file already exists from an earlier publication, it is retained and changed to a no-longer-public stub. Deleting an event similarly retains and retires an existing public share URL.

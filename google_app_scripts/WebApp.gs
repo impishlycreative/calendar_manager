@@ -125,9 +125,13 @@ function handleCreateEvent_(request) {
   const created =
     manager.add(eventData);
 
+  const share =
+    trySyncEventShareArtifact_(created);
+
   return jsonResponse_({
     ok: true,
-    event: toClientEvent_(created)
+    event: toClientEvent_(created),
+    share: share
   });
 }
 
@@ -169,9 +173,13 @@ function handleUpdateEvent_(request) {
       eventData
     );
 
+  const share =
+    trySyncEventShareArtifact_(updated);
+
   return jsonResponse_({
     ok: true,
-    event: toClientEvent_(updated)
+    event: toClientEvent_(updated),
+    share: share
   });
 }
 
@@ -187,10 +195,14 @@ function handleDeleteEvent_(request) {
       "Event data is required."
     );
 
+  const eventId =
+    requireEventId_(data.id);
+
+  const existing =
+    manager.read(eventId);
+
   const deleted =
-    manager.remove(
-      requireEventId_(data.id)
-    );
+    manager.remove(eventId);
 
   if (!deleted) {
     throw new WebAppError(
@@ -199,7 +211,11 @@ function handleDeleteEvent_(request) {
     );
   }
 
-  return jsonResponse_({ ok: true });
+  const share = existing
+    ? tryRetireEventShareArtifact_(existing, "This event is no longer available.")
+    : { ok: true, state: "not-required" };
+
+  return jsonResponse_({ ok: true, share: share });
 }
 
 
