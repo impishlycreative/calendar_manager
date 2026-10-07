@@ -125,8 +125,9 @@ function handleCreateEvent_(request) {
   const created =
     manager.add(eventData);
 
-  const share =
-    trySyncEventShareArtifact_(created);
+  const share = created.status === "Published"
+    ? trySyncEventShareArtifact_(created)
+    : { ok: true, state: "not-required" };
 
   return jsonResponse_({
     ok: true,
@@ -173,8 +174,11 @@ function handleUpdateEvent_(request) {
       eventData
     );
 
-  const share =
-    trySyncEventShareArtifact_(updated);
+  const share = updated.status === "Published"
+    ? trySyncEventShareArtifact_(updated)
+    : existing.status === "Published"
+      ? tryRetireEventShareArtifact_(updated, "This event is not currently published.")
+      : { ok: true, state: "not-required" };
 
   return jsonResponse_({
     ok: true,

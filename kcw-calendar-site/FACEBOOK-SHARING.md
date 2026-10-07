@@ -29,6 +29,7 @@ The GitHub token stays in Script Properties and is never written to Calendar met
 ## Lifecycle
 
 - Publishing creates or updates the stable event-ID share file.
+- A never-published Draft does not contact GitHub or require a share artifact.
 - Editing a published event updates the same file.
 - Saving a formerly published event as Draft retains the URL but changes the file to an unavailable stub.
 - Deleting an event retains the URL but changes the file to an unavailable stub.
