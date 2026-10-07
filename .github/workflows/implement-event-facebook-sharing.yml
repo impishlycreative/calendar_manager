@@ -1,0 +1,544 @@
+name: Implement event Facebook sharing
+
+on:
+  push:
+    branches:
+      - feature/event-facebook-sharing
+    paths:
+      - ".github/workflows/implement-event-facebook-sharing.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  implement:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/event-facebook-sharing
+
+      - name: Apply implementation
+        shell: bash
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              p = Path(path)
+              text = p.read_text()
+              if old not in text:
+                  raise SystemExit(f"Expected text not found in {path}: {old[:80]!r}")
+              p.write_text(text.replace(old, new, 1))
+
+          event_shares = r'''/**
+           * Event-specific Facebook/Open Graph share artifact publishing.
+           *
+           * Share files are staged in this repository and then copied to
+           * kemptvillecw/mainsite:dev by GitHub Actions. GitHub credentials
+           * remain in Apps Script Script Properties.
+           */
+          function eventShareConfig_() {
+            const prop = key => getScriptProperty_(key, true);
+            const repo = prop("SHARE_GITHUB_REPOSITORY") || prop("IMAGE_GITHUB_REPOSITORY") || "impishlycreative/calendar_manager";
+            const branch = prop("SHARE_GITHUB_BRANCH") || prop("IMAGE_GITHUB_BRANCH") || "main";
+            const folder = prop("SHARE_GITHUB_FOLDER") || "kcw-calendar-site/share/events";
+            const token = prop("SHARE_GITHUB_TOKEN") || prop("IMAGE_GITHUB_TOKEN");
+            const siteBase = (prop("SHARE_PUBLIC_SITE_URL") || "https://www.kemptvillecreativewriters.com/").replace(/\/+$/, "") + "/";
+
+            if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repo) ||
+                !/^[A-Za-z0-9._\/-]+$/.test(branch) ||
+                !token ||
+                !folder || folder.split("/").some(part => !/^[A-Za-z0-9_.-]+$/.test(part)) ||
+                !/^https:\/\/[^?#]+\/$/.test(siteBase)) {
+              throw new WebAppError(
+                "SHARE_PUBLISH_NOT_CONFIGURED",
+                "Facebook share-file publishing is not configured correctly."
+              );
+            }
+
+            return { repo, branch, folder, token, siteBase };
+          }
+
+          function eventShareFilename_(eventId) {
+            eventId = String(eventId || "").trim();
+            if (!eventId || eventId.length > 1024 || !/^[A-Za-z0-9_\-@.]+$/.test(eventId)) {
+              throw new WebAppError("INVALID_REQUEST", "Event id is not valid for sharing.");
+            }
+            return eventId + ".html";
+          }
+
+          function eventShareHtmlEscape_(value) {
+            return String(value == null ? "" : value).replace(/[&<>"']/g, character => ({
+              "&": "&amp;",
+              "<": "&lt;",
+              ">": "&gt;",
+              '"': "&quot;",
+              "'": "&#39;"
+            })[character]);
+          }
+
+          function eventShareDescription_(event) {
+            const source = String(event.description || "").replace(/\s+/g, " ").trim() ||
+              ("Join Kemptville Creative Writers for " + (event.eventTitle || event.title || "this event") + ".");
+            return source.length <= 320 ? source : source.slice(0, 317).trim() + "…";
+          }
+
+          function eventShareImageUrl_(config, image) {
+            image = String(image || "").trim();
+            if (!image) return "";
+            if (/^https:\/\/[^\s]+$/i.test(image)) return image;
+            if (/^images\/[A-Za-z0-9_.\/-]+$/.test(image) && image.indexOf("..") === -1) {
+              return config.siteBase + image;
+            }
+            return "";
+          }
+
+          function eventShareUrls_(config, eventId) {
+            const filename = eventShareFilename_(eventId);
+            return {
+              filename,
+              share: config.siteBase + "share/events/" + encodeURIComponent(filename),
+              destination: config.siteBase + "schedule.html#" + encodeURIComponent(eventId),
+              retiredDestination: config.siteBase + "schedule.html"
+            };
+          }
+
+          function buildEventShareHtml_(event, retired, reason) {
+            requireObject_(event, "Event data is required.");
+            const config = eventShareConfig_();
+            const urls = eventShareUrls_(config, event.id);
+            const baseTitle = String(event.eventTitle || event.title || "KCW event").trim();
+            const title = retired ? baseTitle + " — no longer available" : baseTitle;
+            const description = retired
+              ? String(reason || "This event is no longer publicly available.")
+              : eventShareDescription_(event);
+            const destination = retired ? urls.retiredDestination : urls.destination;
+            const image = retired ? "" : eventShareImageUrl_(config, event.image);
+            const imageAlt = String(event.imageAlt || event.speaker || "").trim();
+            const imageMeta = image
+              ? `\n  <meta property="og:image" content="${eventShareHtmlEscape_(image)}">` +
+                (imageAlt ? `\n  <meta property="og:image:alt" content="${eventShareHtmlEscape_(imageAlt)}">` : "")
+              : "";
+
+            return `<!doctype html>
+          <html lang="en">
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <meta name="robots" content="noindex,follow">
+            <title>${eventShareHtmlEscape_(title)} | Kemptville Creative Writers</title>
+            <meta property="og:type" content="website">
+            <meta property="og:site_name" content="Kemptville Creative Writers">
+            <meta property="og:title" content="${eventShareHtmlEscape_(title)}">
+            <meta property="og:description" content="${eventShareHtmlEscape_(description)}">
+            <meta property="og:url" content="${eventShareHtmlEscape_(urls.share)}">${imageMeta}
+            <link rel="canonical" href="${eventShareHtmlEscape_(destination)}">
+            <meta http-equiv="refresh" content="0;url=${eventShareHtmlEscape_(destination)}">
+          </head>
+          <body>
+            <main>
+              <h1>${eventShareHtmlEscape_(title)}</h1>
+              <p>${eventShareHtmlEscape_(description)}</p>
+              <p><a href="${eventShareHtmlEscape_(destination)}">View this event on Kemptville Creative Writers</a></p>
+            </main>
+          </body>
+          </html>
+          `;
+          }
+
+          function eventShareBlobSha_(content) {
+            const bytes = Utilities.newBlob(content, "text/html", "event-share.html").getBytes();
+            const prefix = Utilities.newBlob("blob " + bytes.length + "\u0000").getBytes();
+            const digest = Utilities.computeDigest(
+              Utilities.DigestAlgorithm.SHA_1,
+              prefix.concat(bytes)
+            );
+            return digest.map(value => ((value & 255) + 256).toString(16).slice(-2)).join("");
+          }
+
+          function eventShareGitHubTarget_(config, eventId) {
+            const filename = eventShareFilename_(eventId);
+            const path = config.folder + "/" + filename;
+            const url = "https://api.github.com/repos/" + config.repo + "/contents/" +
+              path.split("/").map(encodeURIComponent).join("/");
+            const headers = {
+              Authorization: "Bearer " + config.token,
+              Accept: "application/vnd.github+json",
+              "X-GitHub-Api-Version": "2026-03-10"
+            };
+            return { filename, path, url, headers };
+          }
+
+          function writeEventShareArtifact_(event, options) {
+            options = options || {};
+            const config = eventShareConfig_();
+            const target = eventShareGitHubTarget_(config, event.id);
+            const existing = UrlFetchApp.fetch(
+              target.url + "?ref=" + encodeURIComponent(config.branch),
+              { headers: target.headers, muteHttpExceptions: true }
+            );
+            const existingCode = existing.getResponseCode();
+
+            if (existingCode === 404 && options.createIfMissing === false) {
+              return { ok: true, state: "not-required", path: target.path };
+            }
+            if (existingCode !== 200 && existingCode !== 404) {
+              throw new WebAppError(
+                "SHARE_PUBLISH_FAILED",
+                "GitHub could not read the event share file."
+              );
+            }
+
+            let existingFile = null;
+            if (existingCode === 200) {
+              try { existingFile = JSON.parse(existing.getContentText()); }
+              catch (error) { existingFile = null; }
+              if (!existingFile || existingFile.type !== "file" || !existingFile.sha) {
+                throw new WebAppError("SHARE_PUBLISH_FAILED", "GitHub returned an invalid event share file.");
+              }
+            }
+
+            const content = buildEventShareHtml_(event, Boolean(options.retired), options.reason);
+            const contentSha = eventShareBlobSha_(content);
+            if (existingFile && existingFile.sha === contentSha) {
+              return {
+                ok: true,
+                state: "unchanged",
+                path: target.path,
+                url: eventShareUrls_(config, event.id).share
+              };
+            }
+
+            const payload = {
+              message: (existingFile ? "Update" : "Add") + " calendar event share " + target.filename,
+              content: Utilities.base64Encode(content, Utilities.Charset.UTF_8),
+              branch: config.branch
+            };
+            if (existingFile) payload.sha = existingFile.sha;
+
+            const response = UrlFetchApp.fetch(target.url, {
+              method: "put",
+              headers: target.headers,
+              contentType: "application/json",
+              muteHttpExceptions: true,
+              payload: JSON.stringify(payload)
+            });
+            const code = response.getResponseCode();
+            if ((existingFile && code !== 200) || (!existingFile && code !== 201)) {
+              throw new WebAppError(
+                "SHARE_PUBLISH_FAILED",
+                "GitHub could not store the event share file."
+              );
+            }
+
+            return {
+              ok: true,
+              state: existingFile ? "updated" : "created",
+              path: target.path,
+              url: eventShareUrls_(config, event.id).share
+            };
+          }
+
+          function syncEventShareArtifact_(event) {
+            requireObject_(event, "Event data is required.");
+            if (event.status === "Published") {
+              return writeEventShareArtifact_(event, { createIfMissing: true });
+            }
+            return writeEventShareArtifact_(event, {
+              createIfMissing: false,
+              retired: true,
+              reason: "This event is not currently published."
+            });
+          }
+
+          function retireEventShareArtifact_(event, reason) {
+            return writeEventShareArtifact_(event, {
+              createIfMissing: false,
+              retired: true,
+              reason: reason || "This event is no longer publicly available."
+            });
+          }
+
+          function eventShareFailure_(error) {
+            console.error("Event share publishing failed: " + (error && error.code ? error.code : "SHARE_PUBLISH_FAILED"));
+            return {
+              ok: false,
+              code: error && error.code ? error.code : "SHARE_PUBLISH_FAILED",
+              message: error instanceof WebAppError
+                ? error.message
+                : "The event was saved, but its Facebook share file could not be published."
+            };
+          }
+
+          function trySyncEventShareArtifact_(event) {
+            try { return syncEventShareArtifact_(event); }
+            catch (error) { return eventShareFailure_(error); }
+          }
+
+          function tryRetireEventShareArtifact_(event, reason) {
+            try { return retireEventShareArtifact_(event, reason); }
+            catch (error) { return eventShareFailure_(error); }
+          }
+
+          /** One-time/manual maintenance helper for currently visible public events. */
+          function backfillPublishedEventShares_() {
+            const manager = getCalendarManager_();
+            const results = { createdOrUpdated: 0, failed: 0, items: [] };
+            manager.getUpcomingEvents().forEach(event => {
+              const result = trySyncEventShareArtifact_(event);
+              results.items.push({ id: event.id, ok: result.ok, state: result.state || null, code: result.code || null });
+              if (result.ok) results.createdOrUpdated += 1;
+              else results.failed += 1;
+            });
+            return results;
+          }
+          '''
+          Path('google_app_scripts/EventShares.gs').write_text(event_shares)
+
+          webapp = Path('google_app_scripts/WebApp.gs')
+          text = webapp.read_text()
+          old = '''  const created =\n    manager.add(eventData);\n\n  return jsonResponse_({\n    ok: true,\n    event: toClientEvent_(created)\n  });'''
+          new = '''  const created =\n    manager.add(eventData);\n\n  const share =\n    trySyncEventShareArtifact_(created);\n\n  return jsonResponse_({\n    ok: true,\n    event: toClientEvent_(created),\n    share: share\n  });'''
+          if old not in text: raise SystemExit('Create handler pattern not found')
+          text = text.replace(old, new, 1)
+          old = '''  const updated =\n    manager.update(\n      eventId,\n      eventData\n    );\n\n  return jsonResponse_({\n    ok: true,\n    event: toClientEvent_(updated)\n  });'''
+          new = '''  const updated =\n    manager.update(\n      eventId,\n      eventData\n    );\n\n  const share =\n    trySyncEventShareArtifact_(updated);\n\n  return jsonResponse_({\n    ok: true,\n    event: toClientEvent_(updated),\n    share: share\n  });'''
+          if old not in text: raise SystemExit('Update handler pattern not found')
+          text = text.replace(old, new, 1)
+          old = '''  const deleted =\n    manager.remove(\n      requireEventId_(data.id)\n    );\n\n  if (!deleted) {\n    throw new WebAppError(\n      "NOT_FOUND",\n      "Event not found."\n    );\n  }\n\n  return jsonResponse_({ ok: true });'''
+          new = '''  const eventId =\n    requireEventId_(data.id);\n\n  const existing =\n    manager.read(eventId);\n\n  const deleted =\n    manager.remove(eventId);\n\n  if (!deleted) {\n    throw new WebAppError(\n      "NOT_FOUND",\n      "Event not found."\n    );\n  }\n\n  const share = existing\n    ? tryRetireEventShareArtifact_(existing, "This event is no longer available.")\n    : { ok: true, state: "not-required" };\n\n  return jsonResponse_({ ok: true, share: share });'''
+          if old not in text: raise SystemExit('Delete handler pattern not found')
+          text = text.replace(old, new, 1)
+          webapp.write_text(text)
+
+          calendar = Path('kcw-calendar-site/assets/calendar.js')
+          text = calendar.read_text()
+          old = '''    Object.assign(payload, await imageEditor.forSave(api));\n    await api(id ? "updateEvent" : "createEvent", payload);\n    const clearedImage = imageEditor.saved();\n\n    dialog.close();\n\n    showStatus(\n      (status === "Draft" ? "Event saved as draft." : "Event published.") + (clearedImage ? "" : " The local image copy could not be cleared from browser storage."),\n      "success"\n    );'''
+          new = '''    Object.assign(payload, await imageEditor.forSave(api));\n    const result = await api(id ? "updateEvent" : "createEvent", payload);\n    const clearedImage = imageEditor.saved();\n\n    dialog.close();\n\n    const shareFailed = result?.share?.ok === false;\n    const shareMessage = shareFailed\n      ? " Facebook sharing file could not be published; save the event again to retry."\n      : (status === "Published" && result?.share?.ok === true\n          ? " Facebook sharing file created for site sync."\n          : "");\n    showStatus(\n      (status === "Draft" ? "Event saved as draft." : "Event published.") +\n        shareMessage +\n        (clearedImage ? "" : " The local image copy could not be cleared from browser storage."),\n      shareFailed ? "error-box" : "success"\n    );'''
+          if old not in text: raise SystemExit('Calendar save pattern not found')
+          text = text.replace(old, new, 1)
+          old = '''    await api("deleteEvent", { id: deleteId });\n\n    deleteDialog.close();\n    showStatus("Event deleted.", "success");'''
+          new = '''    const result = await api("deleteEvent", { id: deleteId });\n\n    deleteDialog.close();\n    const shareFailed = result?.share?.ok === false;\n    showStatus(\n      shareFailed\n        ? "Event deleted, but its old Facebook share link could not be retired."\n        : "Event deleted.",\n      shareFailed ? "error-box" : "success"\n    );'''
+          if old not in text: raise SystemExit('Calendar delete pattern not found')
+          text = text.replace(old, new, 1)
+          calendar.write_text(text)
+
+          contract = Path('kcw-calendar-site/apps-script-contract.md')
+          text = contract.read_text()
+          marker = '## Facebook event share artifact result'
+          if marker not in text:
+              text += r'''
+
+          ## Facebook event share artifact result
+
+          `createEvent`, `updateEvent`, and `deleteEvent` may include a `share` object while still returning `ok: true` for the calendar mutation itself.
+
+          Example successful publish:
+
+          ```json
+          {
+            "ok": true,
+            "event": { "id": "..." },
+            "share": {
+              "ok": true,
+              "state": "created",
+              "path": "kcw-calendar-site/share/events/<event-id>.html",
+              "url": "https://www.kemptvillecreativewriters.com/share/events/<event-id>.html"
+            }
+          }
+          ```
+
+          A partial failure is reported without rolling back the Google Calendar save:
+
+          ```json
+          {
+            "ok": true,
+            "event": { "id": "..." },
+            "share": {
+              "ok": false,
+              "code": "SHARE_PUBLISH_FAILED",
+              "message": "The event was saved, but its Facebook share file could not be published."
+            }
+          }
+          ```
+
+          Saving a Draft does not create a share file. If a share file already exists from an earlier publication, it is retained and changed to a no-longer-public stub. Deleting an event similarly retains and retires an existing public share URL.
+          '''
+              contract.write_text(text)
+
+          docs = r'''# Per-event Facebook sharing
+
+          Calendar Manager generates one small static HTML share artifact for each published event. The file contains event-specific Open Graph metadata for Facebook and redirects human visitors to the event row on the KCW schedule.
+
+          ## Source and destination
+
+          Calendar Manager stages files in this repository at:
+
+          `kcw-calendar-site/share/events/<google-calendar-event-id>.html`
+
+          The `sync-kcw-share-events.yml` workflow copies them to:
+
+          `kemptvillecw/mainsite:dev/share/events/`
+
+          The existing KCW promotion process then carries them through UAT to `main`/production.
+
+          ## Apps Script properties
+
+          Existing image-publishing credentials are reused by default. The following optional properties override the defaults:
+
+          - `SHARE_GITHUB_REPOSITORY` (default `impishlycreative/calendar_manager`)
+          - `SHARE_GITHUB_BRANCH` (default `main`)
+          - `SHARE_GITHUB_FOLDER` (default `kcw-calendar-site/share/events`)
+          - `SHARE_GITHUB_TOKEN` (falls back to `IMAGE_GITHUB_TOKEN`)
+          - `SHARE_PUBLIC_SITE_URL` (default `https://www.kemptvillecreativewriters.com/`)
+
+          The GitHub token stays in Script Properties and is never written to Calendar metadata or the public site.
+
+          ## Lifecycle
+
+          - Publishing creates or updates the stable event-ID share file.
+          - Editing a published event updates the same file.
+          - Saving a formerly published event as Draft retains the URL but changes the file to an unavailable stub.
+          - Deleting an event retains the URL but changes the file to an unavailable stub.
+          - Merely becoming archived does not delete or rewrite the file; old Facebook posts continue to work.
+
+          ## Backfill
+
+          After deploying the Apps Script code for the first time, run `backfillPublishedEventShares_()` once from the Apps Script editor to generate artifacts for currently visible upcoming Published events. New/edited events maintain their own files automatically after that.
+          '''
+          Path('kcw-calendar-site/FACEBOOK-SHARING.md').write_text(docs)
+
+          tests = r'''const { test } = require('node:test');
+          const assert = require('node:assert/strict');
+          const fs = require('node:fs');
+          const vm = require('node:vm');
+          const crypto = require('node:crypto');
+
+          const source = fs.readFileSync('google_app_scripts/EventShares.gs', 'utf8');
+
+          function response(code, body = {}) {
+            return {
+              getResponseCode: () => code,
+              getContentText: () => JSON.stringify(body)
+            };
+          }
+
+          function backend(props = {}, existing = response(404)) {
+            const calls = [];
+            const ctx = {
+              console: { error() {} },
+              requireObject_: value => assert(value && typeof value === 'object'),
+              getScriptProperty_: key => props[key] || '',
+              getCalendarManager_: () => ({ getUpcomingEvents: () => [] }),
+              WebAppError: class extends Error {
+                constructor(code, message) { super(message); this.code = code; }
+              },
+              Utilities: {
+                Charset: { UTF_8: 'utf8' },
+                DigestAlgorithm: { SHA_1: 'sha1' },
+                newBlob: value => ({ getBytes: () => Array.from(Buffer.from(String(value), 'utf8')) }),
+                computeDigest: (algorithm, bytes) => Array.from(crypto.createHash(algorithm).update(Buffer.from(bytes)).digest()),
+                base64Encode: value => Buffer.from(String(value), 'utf8').toString('base64')
+              },
+              UrlFetchApp: {
+                fetch(url, options = {}) {
+                  calls.push({ url, options });
+                  if ((options.method || 'get').toLowerCase() === 'put') {
+                    return response(existing.getResponseCode() === 200 ? 200 : 201, {});
+                  }
+                  return existing;
+                }
+              }
+            };
+            vm.createContext(ctx);
+            vm.runInContext(source, ctx);
+            return { ctx, calls };
+          }
+
+          const props = {
+            IMAGE_GITHUB_TOKEN: 'test-only',
+            SHARE_PUBLIC_SITE_URL: 'https://www.kemptvillecreativewriters.com/'
+          };
+          const event = {
+            id: 'abc123@google.com',
+            status: 'Published',
+            eventTitle: 'Writers & Friends <Night>',
+            title: 'Fallback title',
+            description: 'Bring a story & meet other writers.',
+            image: 'images/event_123.png',
+            imageAlt: 'Writers around a table'
+          };
+
+          test('uses the stable Google Calendar event id as the filename', () => {
+            const { ctx } = backend(props);
+            assert.equal(ctx.eventShareFilename_(event.id), 'abc123@google.com.html');
+            assert.throws(() => ctx.eventShareFilename_('../bad'), error => error.code === 'INVALID_REQUEST');
+          });
+
+          test('published event creates static Open Graph HTML and an absolute site image URL', () => {
+            const { ctx, calls } = backend(props);
+            const result = ctx.syncEventShareArtifact_(event);
+            assert.equal(result.ok, true);
+            assert.equal(result.state, 'created');
+            assert.equal(calls.length, 2);
+            const payload = JSON.parse(calls[1].options.payload);
+            const html = Buffer.from(payload.content, 'base64').toString('utf8');
+            assert.match(html, /og:title/);
+            assert.match(html, /Writers &amp; Friends &lt;Night&gt;/);
+            assert.match(html, /https:\/\/www\.kemptvillecreativewriters\.com\/images\/event_123\.png/);
+            assert.match(html, /share\/events\/abc123%40google\.com\.html/);
+            assert.match(html, /schedule\.html#abc123%40google\.com/);
+          });
+
+          test('existing share file is updated with its current sha', () => {
+            const existing = response(200, { type: 'file', sha: 'old-sha' });
+            const { ctx, calls } = backend(props, existing);
+            const result = ctx.syncEventShareArtifact_(event);
+            assert.equal(result.state, 'updated');
+            const payload = JSON.parse(calls[1].options.payload);
+            assert.equal(payload.sha, 'old-sha');
+          });
+
+          test('a draft does not create a new share file', () => {
+            const { ctx, calls } = backend(props);
+            const result = ctx.syncEventShareArtifact_({ ...event, status: 'Draft' });
+            assert.equal(result.state, 'not-required');
+            assert.equal(calls.length, 1);
+          });
+
+          test('an existing share file is retained and retired when event becomes draft', () => {
+            const existing = response(200, { type: 'file', sha: 'old-sha' });
+            const { ctx, calls } = backend(props, existing);
+            const result = ctx.syncEventShareArtifact_({ ...event, status: 'Draft' });
+            assert.equal(result.state, 'updated');
+            const html = Buffer.from(JSON.parse(calls[1].options.payload).content, 'base64').toString('utf8');
+            assert.match(html, /no longer available/);
+            assert.doesNotMatch(html, /og:image/);
+          });
+
+          test('publishing failure is returned as a partial failure rather than thrown by the safe wrapper', () => {
+            const bad = response(403, {});
+            const { ctx } = backend(props, bad);
+            const result = ctx.trySyncEventShareArtifact_(event);
+            assert.equal(result.ok, false);
+            assert.equal(result.code, 'SHARE_PUBLISH_FAILED');
+          });
+          '''
+          Path('tests/event-shares.test.cjs').write_text(tests)
+          PY
+
+      - name: Validate implementation
+        run: |
+          node --test tests/*.test.cjs
+          git diff --check
+
+      - name: Commit implementation
+        run: |
+          git config user.name "KCW Implementation Bot"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add google_app_scripts/EventShares.gs google_app_scripts/WebApp.gs \
+            kcw-calendar-site/assets/calendar.js kcw-calendar-site/apps-script-contract.md \
+            kcw-calendar-site/FACEBOOK-SHARING.md tests/event-shares.test.cjs
+          git commit -m "Implement per-event Facebook share artifacts"
+          git push origin HEAD:feature/event-facebook-sharing
