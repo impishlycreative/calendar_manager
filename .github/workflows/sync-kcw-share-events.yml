@@ -1,11 +1,11 @@
-name: Sync KCW images to mainsite dev
+name: Sync KCW event share files to mainsite dev
 
 on:
   push:
     branches:
       - main
     paths:
-      - "kcw-calendar-site/images/**"
+      - "kcw-calendar-site/share/events/**"
 
   workflow_dispatch:
 
@@ -14,7 +14,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  sync-images:
+  sync-share-events:
     runs-on: ubuntu-latest
 
     steps:
@@ -29,10 +29,14 @@ jobs:
           token: ${{ secrets.TARGET_TOKEN }}
           path: mainsite
 
-      - name: Copy images to mainsite
+      - name: Copy event share files to mainsite
         run: |
-          mkdir -p mainsite/images
-          cp -R kcw-calendar-site/images/. mainsite/images/
+          if [ ! -d kcw-calendar-site/share/events ]; then
+            echo "No event share directory exists yet."
+            exit 0
+          fi
+          mkdir -p mainsite/share/events
+          cp -R kcw-calendar-site/share/events/. mainsite/share/events/
 
       - name: Commit and push changes
         working-directory: mainsite
@@ -40,13 +44,13 @@ jobs:
           git config user.name "KCW Calendar Manager"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          git add images/
+          git add share/events/
 
           if git diff --cached --quiet; then
-            echo "No image changes to commit."
+            echo "No event share changes to commit."
             exit 0
           fi
 
-          git commit -m "Sync images from Calendar Manager"
+          git commit -m "Sync event share files from Calendar Manager"
           git pull --rebase origin dev
           git push origin dev
