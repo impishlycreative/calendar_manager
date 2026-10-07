@@ -1,0 +1,56 @@
+name: Sync KCW event share files to mainsite dev
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "kcw-calendar-site/share/events/**"
+
+  workflow_dispatch:
+
+concurrency:
+  group: sync-kcw-mainsite-dev
+  cancel-in-progress: false
+
+jobs:
+  sync-share-events:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout calendar-manager
+        uses: actions/checkout@v4
+
+      - name: Checkout KCW mainsite dev
+        uses: actions/checkout@v4
+        with:
+          repository: kemptvillecw/mainsite
+          ref: dev
+          token: ${{ secrets.TARGET_TOKEN }}
+          path: mainsite
+
+      - name: Copy event share files to mainsite
+        run: |
+          if [ ! -d kcw-calendar-site/share/events ]; then
+            echo "No event share directory exists yet."
+            exit 0
+          fi
+          mkdir -p mainsite/share/events
+          cp -R kcw-calendar-site/share/events/. mainsite/share/events/
+
+      - name: Commit and push changes
+        working-directory: mainsite
+        run: |
+          git config user.name "KCW Calendar Manager"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add share/events/
+
+          if git diff --cached --quiet; then
+            echo "No event share changes to commit."
+            exit 0
+          fi
+
+          git commit -m "Sync event share files from Calendar Manager"
+          git pull --rebase origin dev
+          git push origin dev
