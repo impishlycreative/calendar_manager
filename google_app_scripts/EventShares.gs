@@ -45,8 +45,23 @@ function eventShareHtmlEscape_(value) {
   })[character]);
 }
 
+function eventShareText_(value) {
+  return String(value == null ? "" : value)
+    .replace(/<br\s*\/?>/gi, " ")
+    .replace(/<\/p\s*>/gi, " ")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function eventShareDescription_(event) {
-  const source = String(event.description || "").replace(/\s+/g, " ").trim() ||
+  const source = eventShareText_(event.description) ||
     ("Join Kemptville Creative Writers for " + (event.eventTitle || event.title || "this event") + ".");
   return source.length <= 320 ? source : source.slice(0, 317).trim() + "…";
 }
@@ -67,7 +82,9 @@ function eventShareUrls_(config, eventId) {
     filename,
     share: config.siteBase + "share/events/" + encodeURIComponent(filename),
     destination: config.siteBase + "schedule.html#" + encodeURIComponent(eventId),
-    retiredDestination: config.siteBase + "schedule.html"
+    retiredDestination: config.siteBase + "schedule.html",
+    destinationRelative: "../../schedule.html#" + encodeURIComponent(eventId),
+    retiredDestinationRelative: "../../schedule.html"
   };
 }
 
@@ -80,7 +97,7 @@ function buildEventShareHtml_(event, retired, reason) {
   const description = retired
     ? String(reason || "This event is no longer publicly available.")
     : eventShareDescription_(event);
-  const destination = retired ? urls.retiredDestination : urls.destination;
+  const destination = retired ? urls.retiredDestinationRelative : urls.destinationRelative;
   const image = retired ? "" : eventShareImageUrl_(config, event.image);
   const imageAlt = String(event.imageAlt || event.speaker || "").trim();
   const imageMeta = image
@@ -98,12 +115,10 @@ function buildEventShareHtml_(event, retired, reason) {
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Kemptville Creative Writers">
   <meta property="og:title" content="${eventShareHtmlEscape_(title)}">
-  <meta property="og:description" content="${eventShareHtmlEscape_(description)}">
-  <meta property="og:url" content="${eventShareHtmlEscape_(urls.share)}">${imageMeta}
-  <link rel="canonical" href="${eventShareHtmlEscape_(destination)}">
-  <meta http-equiv="refresh" content="0;url=${eventShareHtmlEscape_(destination)}">
+  <meta property="og:description" content="${eventShareHtmlEscape_(description)}">${imageMeta}
 </head>
 <body>
+  <script>window.location.replace("${destination}");</script>
   <main>
     <h1>${eventShareHtmlEscape_(title)}</h1>
     <p>${eventShareHtmlEscape_(description)}</p>
