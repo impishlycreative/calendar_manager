@@ -68,12 +68,11 @@ function eventShareDescription_(event) {
 
 function eventShareImageUrl_(config, image) {
   image = String(image || "").trim();
-  if (!image) return "";
   if (/^https:\/\/[^\s]+$/i.test(image)) return image;
   if (/^images\/[A-Za-z0-9_.\/-]+$/.test(image) && image.indexOf("..") === -1) {
     return config.siteBase + image;
   }
-  return "";
+  return config.siteBase + "images/schedule-hero-optimized.png";
 }
 
 function eventShareUrls_(config, eventId) {
@@ -98,12 +97,8 @@ function buildEventShareHtml_(event, retired, reason) {
     ? String(reason || "This event is no longer publicly available.")
     : eventShareDescription_(event);
   const destination = retired ? urls.retiredDestinationRelative : urls.destinationRelative;
-  const image = retired ? "" : eventShareImageUrl_(config, event.image);
-  const imageAlt = String(event.imageAlt || event.speaker || "").trim();
-  const imageMeta = image
-    ? `\n  <meta property="og:image" content="${eventShareHtmlEscape_(image)}">` +
-      (imageAlt ? `\n  <meta property="og:image:alt" content="${eventShareHtmlEscape_(imageAlt)}">` : "")
-    : "";
+  const image = eventShareImageUrl_(config, retired ? "" : event.image);
+  const imageAlt = String((retired ? "" : (event.imageAlt || event.speaker)) || "Kemptville Creative Writers").trim();
 
   return `<!doctype html>
 <html lang="en">
@@ -115,7 +110,11 @@ function buildEventShareHtml_(event, retired, reason) {
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Kemptville Creative Writers">
   <meta property="og:title" content="${eventShareHtmlEscape_(title)}">
-  <meta property="og:description" content="${eventShareHtmlEscape_(description)}">${imageMeta}
+  <meta property="og:description" content="${eventShareHtmlEscape_(description)}">
+  <meta property="og:url" content="${eventShareHtmlEscape_(urls.share)}">
+  <meta property="og:image" content="${eventShareHtmlEscape_(image)}">
+  <meta property="og:image:alt" content="${eventShareHtmlEscape_(imageAlt)}">
+  <link rel="canonical" href="${eventShareHtmlEscape_(urls.share)}">
 </head>
 <body>
   <script>window.location.replace("${destination}");</script>
