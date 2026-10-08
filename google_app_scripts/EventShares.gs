@@ -105,8 +105,8 @@ function buildEventShareHtml_(event, retired, reason) {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="robots" content="noindex,follow">
   <title>${eventShareHtmlEscape_(title)} | Kemptville Creative Writers</title>
+  <meta name="description" content="${eventShareHtmlEscape_(description)}">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Kemptville Creative Writers">
   <meta property="og:title" content="${eventShareHtmlEscape_(title)}">
@@ -117,7 +117,6 @@ function buildEventShareHtml_(event, retired, reason) {
   <link rel="canonical" href="${eventShareHtmlEscape_(urls.share)}">
 </head>
 <body>
-  <script>window.location.replace("${destination}");</script>
   <main>
     <h1>${eventShareHtmlEscape_(title)}</h1>
     <p>${eventShareHtmlEscape_(description)}</p>
