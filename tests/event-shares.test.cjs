@@ -65,7 +65,7 @@ test('uses the stable Google Calendar event id as the filename', () => {
   assert.throws(() => ctx.eventShareFilename_('../bad'), error => error.code === 'INVALID_REQUEST');
 });
 
-test('published event creates complete scraper-safe Open Graph HTML', () => {
+test('published event creates complete stable Open Graph landing HTML', () => {
   const { ctx, calls } = backend(props);
   const result = ctx.syncEventShareArtifact_(event);
   assert.equal(result.ok, true);
@@ -78,12 +78,14 @@ test('published event creates complete scraper-safe Open Graph HTML', () => {
   assert.match(html, /Writers &amp; Friends &lt;Night&gt;/);
   assert.match(html, /Bring a story &amp; meet other writers\./);
   assert.doesNotMatch(html, /<strong>story<\/strong>/);
+  assert.match(html, /name="description" content="Bring a story &amp; meet other writers\."/);
   assert.match(html, /property="og:url" content="https:\/\/www\.kemptvillecreativewriters\.com\/share\/events\/abc123%40google\.com\.html"/);
   assert.match(html, /property="og:image" content="https:\/\/www\.kemptvillecreativewriters\.com\/images\/event_123\.png"/);
   assert.match(html, /property="og:image:alt" content="Writers around a table"/);
   assert.match(html, /rel="canonical" href="https:\/\/www\.kemptvillecreativewriters\.com\/share\/events\/abc123%40google\.com\.html"/);
   assert.doesNotMatch(html, /http-equiv="refresh"/);
-  assert.match(html, /window\.location\.replace\("\.\.\/\.\.\/schedule\.html#abc123%40google\.com"\)/);
+  assert.doesNotMatch(html, /window\.location/);
+  assert.doesNotMatch(html, /name="robots"/);
   assert.match(html, /href="\.\.\/\.\.\/schedule\.html#abc123%40google\.com"/);
 });
 
@@ -121,6 +123,8 @@ test('an existing share file is retained and retired when event becomes draft', 
   assert.match(html, /property="og:url"/);
   assert.match(html, /property="og:image" content="https:\/\/www\.kemptvillecreativewriters\.com\/images\/schedule-hero-optimized\.png"/);
   assert.doesNotMatch(html, /http-equiv="refresh"/);
+  assert.doesNotMatch(html, /window\.location/);
+  assert.doesNotMatch(html, /name="robots"/);
 });
 
 test('publishing failure is returned as a partial failure rather than thrown by the safe wrapper', () => {
