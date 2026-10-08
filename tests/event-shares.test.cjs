@@ -65,7 +65,7 @@ test('uses the stable Google Calendar event id as the filename', () => {
   assert.throws(() => ctx.eventShareFilename_('../bad'), error => error.code === 'INVALID_REQUEST');
 });
 
-test('published event creates scraper-safe Open Graph HTML and an absolute site image URL', () => {
+test('published event creates complete scraper-safe Open Graph HTML', () => {
   const { ctx, calls } = backend(props);
   const result = ctx.syncEventShareArtifact_(event);
   assert.equal(result.ok, true);
@@ -73,15 +73,26 @@ test('published event creates scraper-safe Open Graph HTML and an absolute site 
   assert.equal(calls.length, 2);
   const payload = JSON.parse(calls[1].options.payload);
   const html = Buffer.from(payload.content, 'base64').toString('utf8');
-  assert.match(html, /og:title/);
+  assert.match(html, /property="og:type" content="website"/);
+  assert.match(html, /property="og:title"/);
   assert.match(html, /Writers &amp; Friends &lt;Night&gt;/);
   assert.match(html, /Bring a story &amp; meet other writers\./);
   assert.doesNotMatch(html, /<strong>story<\/strong>/);
-  assert.match(html, /https:\/\/www\.kemptvillecreativewriters\.com\/images\/event_123\.png/);
-  assert.doesNotMatch(html, /property="og:url"/);
+  assert.match(html, /property="og:url" content="https:\/\/www\.kemptvillecreativewriters\.com\/share\/events\/abc123%40google\.com\.html"/);
+  assert.match(html, /property="og:image" content="https:\/\/www\.kemptvillecreativewriters\.com\/images\/event_123\.png"/);
+  assert.match(html, /property="og:image:alt" content="Writers around a table"/);
+  assert.match(html, /rel="canonical" href="https:\/\/www\.kemptvillecreativewriters\.com\/share\/events\/abc123%40google\.com\.html"/);
   assert.doesNotMatch(html, /http-equiv="refresh"/);
   assert.match(html, /window\.location\.replace\("\.\.\/\.\.\/schedule\.html#abc123%40google\.com"\)/);
   assert.match(html, /href="\.\.\/\.\.\/schedule\.html#abc123%40google\.com"/);
+});
+
+test('published event without its own image uses the site fallback image', () => {
+  const { ctx, calls } = backend(props);
+  ctx.syncEventShareArtifact_({ ...event, image: '', imageAlt: '' });
+  const html = Buffer.from(JSON.parse(calls[1].options.payload).content, 'base64').toString('utf8');
+  assert.match(html, /property="og:image" content="https:\/\/www\.kemptvillecreativewriters\.com\/images\/schedule-hero-optimized\.png"/);
+  assert.match(html, /property="og:image:alt" content="Kemptville Creative Writers"/);
 });
 
 test('existing share file is updated with its current sha', () => {
@@ -107,8 +118,8 @@ test('an existing share file is retained and retired when event becomes draft', 
   assert.equal(result.state, 'updated');
   const html = Buffer.from(JSON.parse(calls[1].options.payload).content, 'base64').toString('utf8');
   assert.match(html, /no longer available/);
-  assert.doesNotMatch(html, /og:image/);
-  assert.doesNotMatch(html, /property="og:url"/);
+  assert.match(html, /property="og:url"/);
+  assert.match(html, /property="og:image" content="https:\/\/www\.kemptvillecreativewriters\.com\/images\/schedule-hero-optimized\.png"/);
   assert.doesNotMatch(html, /http-equiv="refresh"/);
 });
 
