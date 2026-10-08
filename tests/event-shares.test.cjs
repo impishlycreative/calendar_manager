@@ -70,6 +70,7 @@ test('published event creates complete stable Open Graph landing HTML', () => {
   const result = ctx.syncEventShareArtifact_(event);
   assert.equal(result.ok, true);
   assert.equal(result.state, 'created');
+  assert.match(result.url, /abc123%40google\.com\.html\?v=3$/);
   assert.equal(calls.length, 2);
   const payload = JSON.parse(calls[1].options.payload);
   const html = Buffer.from(payload.content, 'base64').toString('utf8');
@@ -79,10 +80,10 @@ test('published event creates complete stable Open Graph landing HTML', () => {
   assert.match(html, /Bring a story &amp; meet other writers\./);
   assert.doesNotMatch(html, /<strong>story<\/strong>/);
   assert.match(html, /name="description" content="Bring a story &amp; meet other writers\."/);
-  assert.match(html, /property="og:url" content="https:\/\/www\.kemptvillecreativewriters\.com\/share\/events\/abc123%40google\.com\.html"/);
+  assert.match(html, /property="og:url" content="https:\/\/www\.kemptvillecreativewriters\.com\/share\/events\/abc123%40google\.com\.html\?v=3"/);
   assert.match(html, /property="og:image" content="https:\/\/www\.kemptvillecreativewriters\.com\/images\/event_123\.png"/);
   assert.match(html, /property="og:image:alt" content="Writers around a table"/);
-  assert.match(html, /rel="canonical" href="https:\/\/www\.kemptvillecreativewriters\.com\/share\/events\/abc123%40google\.com\.html"/);
+  assert.match(html, /rel="canonical" href="https:\/\/www\.kemptvillecreativewriters\.com\/share\/events\/abc123%40google\.com\.html\?v=3"/);
   assert.doesNotMatch(html, /http-equiv="refresh"/);
   assert.doesNotMatch(html, /window\.location/);
   assert.doesNotMatch(html, /name="robots"/);
