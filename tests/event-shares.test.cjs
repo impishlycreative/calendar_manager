@@ -54,7 +54,7 @@ const event = {
   status: 'Published',
   eventTitle: 'Writers & Friends <Night>',
   title: 'Fallback title',
-  description: 'Bring a story & meet other writers.',
+  description: 'Bring a <strong>story</strong><br>&amp; meet other writers.',
   image: 'images/event_123.png',
   imageAlt: 'Writers around a table'
 };
@@ -65,7 +65,7 @@ test('uses the stable Google Calendar event id as the filename', () => {
   assert.throws(() => ctx.eventShareFilename_('../bad'), error => error.code === 'INVALID_REQUEST');
 });
 
-test('published event creates static Open Graph HTML and an absolute site image URL', () => {
+test('published event creates scraper-safe Open Graph HTML and an absolute site image URL', () => {
   const { ctx, calls } = backend(props);
   const result = ctx.syncEventShareArtifact_(event);
   assert.equal(result.ok, true);
@@ -75,9 +75,13 @@ test('published event creates static Open Graph HTML and an absolute site image 
   const html = Buffer.from(payload.content, 'base64').toString('utf8');
   assert.match(html, /og:title/);
   assert.match(html, /Writers &amp; Friends &lt;Night&gt;/);
+  assert.match(html, /Bring a story &amp; meet other writers\./);
+  assert.doesNotMatch(html, /<strong>story<\/strong>/);
   assert.match(html, /https:\/\/www\.kemptvillecreativewriters\.com\/images\/event_123\.png/);
-  assert.match(html, /share\/events\/abc123%40google\.com\.html/);
-  assert.match(html, /schedule\.html#abc123%40google\.com/);
+  assert.doesNotMatch(html, /property="og:url"/);
+  assert.doesNotMatch(html, /http-equiv="refresh"/);
+  assert.match(html, /window\.location\.replace\("\.\.\/\.\.\/schedule\.html#abc123%40google\.com"\)/);
+  assert.match(html, /href="\.\.\/\.\.\/schedule\.html#abc123%40google\.com"/);
 });
 
 test('existing share file is updated with its current sha', () => {
@@ -104,6 +108,8 @@ test('an existing share file is retained and retired when event becomes draft', 
   const html = Buffer.from(JSON.parse(calls[1].options.payload).content, 'base64').toString('utf8');
   assert.match(html, /no longer available/);
   assert.doesNotMatch(html, /og:image/);
+  assert.doesNotMatch(html, /property="og:url"/);
+  assert.doesNotMatch(html, /http-equiv="refresh"/);
 });
 
 test('publishing failure is returned as a partial failure rather than thrown by the safe wrapper', () => {
