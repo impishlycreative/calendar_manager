@@ -79,7 +79,7 @@ function eventShareUrls_(config, eventId) {
   const filename = eventShareFilename_(eventId);
   return {
     filename,
-    share: config.siteBase + "share/events/" + encodeURIComponent(filename),
+    share: config.siteBase + "share/events/" + encodeURIComponent(filename) + "?v=3",
     destination: config.siteBase + "schedule.html#" + encodeURIComponent(eventId),
     retiredDestination: config.siteBase + "schedule.html",
     destinationRelative: "../../schedule.html#" + encodeURIComponent(eventId),
