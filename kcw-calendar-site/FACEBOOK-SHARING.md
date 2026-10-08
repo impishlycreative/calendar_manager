@@ -14,6 +14,16 @@ The `sync-kcw-share-events.yml` workflow copies them to:
 
 The existing KCW promotion process then carries them through UAT to `main`/production.
 
+## Facebook scraper behavior
+
+Share artifacts are deliberately environment-safe because the same file is promoted through dev, UAT, and production.
+
+- The artifact does **not** emit `og:url`. Facebook therefore treats the URL it actually fetched as the share URL instead of being redirected to a hard-coded production URL.
+- The artifact does **not** use a zero-second `meta refresh`, which can interfere with Facebook's scraper/share composer.
+- Human visitors are redirected with JavaScript to the relative `../../schedule.html#<event-id>` destination. Because the destination is relative, a visitor remains in the environment where the share file was opened.
+- A normal `View this event on Kemptville Creative Writers` link remains in the page as a non-JavaScript fallback.
+- Calendar description HTML is reduced to plain text before it is written to `og:description` and the visible fallback page.
+
 ## Apps Script properties
 
 Existing image-publishing credentials are reused by default. The following optional properties override the defaults:
@@ -23,6 +33,8 @@ Existing image-publishing credentials are reused by default. The following optio
 - `SHARE_GITHUB_FOLDER` (default `kcw-calendar-site/share/events`)
 - `SHARE_GITHUB_TOKEN` (falls back to `IMAGE_GITHUB_TOKEN`)
 - `SHARE_PUBLIC_SITE_URL` (default `https://www.kemptvillecreativewriters.com/`)
+
+`SHARE_PUBLIC_SITE_URL` is still used for absolute image URLs and backend result URLs. It is not written as `og:url` in the portable share artifact.
 
 The GitHub token stays in Script Properties and is never written to Calendar metadata or the public site.
 
