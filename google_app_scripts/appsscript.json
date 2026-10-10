@@ -6,6 +6,12 @@
         "userSymbol": "OAuth2",
         "version": "43",
         "libraryId": "1B7FSrk5Zi6L1rSxxTDgDEUsPzlukDsi4KGuTMorsTQHhGBzBkMun4iDF"
+      },
+      {
+        "userSymbol": "ResManagerLib",
+        "version": "1",
+        "libraryId": "1byTCzDDGH_iJzFqqA671otS6G7BVeRrG1LnbxZqjCaqK_GrL0PqlShWY",
+        "developmentMode": false
       }
     ]
   },
