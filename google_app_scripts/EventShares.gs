@@ -116,17 +116,65 @@ function buildEventShareHtml_(event, retired, reason) {
   <meta property="og:site_name" content="Kemptville Creative Writers">
   <meta property="og:title" content="${eventShareHtmlEscape_(previewTitle)}">
   <meta property="og:description" content="${eventShareHtmlEscape_(description)}">
-  <meta property="og:url" content="${eventShareHtmlEscape_(urls.share)}">
   <meta property="og:image" content="${eventShareHtmlEscape_(image)}">
   <meta property="og:image:alt" content="${eventShareHtmlEscape_(imageAlt)}">
-  <link rel="canonical" href="${eventShareHtmlEscape_(urls.share)}">
+  <link rel="stylesheet" href="../../styles/styles.css">
 </head>
 <body>
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="site-brand" href="../../index.html" aria-label="Kemptville Creative Writers home">
+        <img src="../../images/logo.svg" alt="Kemptville Creative Writers — Where stories find their voice">
+      </a>
+      <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="site-navigation">Menu</button>
+      <nav id="site-navigation" class="site-nav" aria-label="Main navigation">
+        <a href="../../index.html">Home</a>
+        <a href="../../about.html">About Us</a>
+        <a href="../../schedule.html" aria-current="page">Schedule &amp; Events</a>
+        <a href="../../archive.html">Archive</a>
+        <a href="../../contact.html">Contact</a>
+      </nav>
+    </div>
+  </header>
+
   <main>
-    <h1>${eventShareHtmlEscape_(previewTitle)}</h1>
-    <p>${eventShareHtmlEscape_(description)}</p>
-    <p><a href="${eventShareHtmlEscape_(destination)}">View this event on Kemptville Creative Writers</a></p>
+    <section class="hero hero-schedule">
+      <div class="hero-copy">
+        <p class="eyebrow">KCW calendar event</p>
+        <h1>${eventShareHtmlEscape_(previewTitle)}</h1>
+        <p>${eventShareHtmlEscape_(description)}</p>
+      </div>
+    </section>
+
+    <section class="page-content">
+      <article class="panel">
+        <p class="eyebrow">Event details</p>
+        <h2 class="section-title">${eventShareHtmlEscape_(title)}</h2>
+        ${speaker ? `<p><strong>Guest:</strong> ${eventShareHtmlEscape_(speaker)}</p>` : ""}
+        <p>${eventShareHtmlEscape_(description)}</p>
+        <p><a class="button button-primary" href="${eventShareHtmlEscape_(destination)}">View this event on the KCW schedule</a></p>
+      </article>
+    </section>
   </main>
+
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <div class="footer-brand">
+        <strong>Kemptville Creative Writers</strong>
+        <span>Where stories find their voice</span>
+      </div>
+      <nav aria-label="Footer navigation">
+        <a href="../../index.html">Home</a>
+        <a href="../../about.html">About Us</a>
+        <a href="../../schedule.html">Schedule &amp; Events</a>
+        <a href="../../archive.html">Archive</a>
+        <a href="../../contact.html">Contact</a>
+        <a href="../../privacy.html">Privacy</a>
+      </nav>
+      <p>© 2026 Kemptville Creative Writers</p>
+    </div>
+  </footer>
+  <script src="../../scripts/site.js"></script>
 </body>
 </html>
 `;
