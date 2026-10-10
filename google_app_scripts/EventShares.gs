@@ -266,15 +266,80 @@ function tryRetireEventShareArtifact_(event, reason) {
   catch (error) { return eventShareFailure_(error); }
 }
 
-/** One-time/manual maintenance helper for currently visible public events. */
-function backfillPublishedEventShares_() {
+/**
+ * Rebuilds share pages for every upcoming public event returned by the
+ * managed Google Calendar. CalendarManager treats ordinary Google Calendar
+ * events without KCW metadata as Published, so direct Calendar entries and
+ * recurring instances are included as well as Calendar Manager-created events.
+ *
+ * The Google Calendar event id is the canonical key. writeEventShareArtifact_
+ * reads the exact target file and compares its Git blob SHA before writing, so
+ * repeated rebuilds update in place and never create duplicate share files.
+ */
+function rebuildUpcomingEventShares_() {
   const manager = getCalendarManager_();
-  const results = { createdOrUpdated: 0, failed: 0, items: [] };
+  const results = {
+    total: 0,
+    created: 0,
+    updated: 0,
+    unchanged: 0,
+    failed: 0,
+    items: []
+  };
+
   manager.getUpcomingEvents().forEach(event => {
+    results.total += 1;
     const result = trySyncEventShareArtifact_(event);
-    results.items.push({ id: event.id, ok: result.ok, state: result.state || null, code: result.code || null });
-    if (result.ok) results.createdOrUpdated += 1;
-    else results.failed += 1;
+    const state = result.state || null;
+    results.items.push({
+      id: event.id,
+      ok: result.ok,
+      state: state,
+      code: result.code || null
+    });
+
+    if (!result.ok) {
+      results.failed += 1;
+    } else if (state === "created") {
+      results.created += 1;
+    } else if (state === "updated") {
+      results.updated += 1;
+    } else {
+      results.unchanged += 1;
+    }
   });
+
   return results;
+}
+
+/** Backward-compatible manual helper. */
+function backfillPublishedEventShares_() {
+  return rebuildUpcomingEventShares_();
+}
+
+/** Time-driven trigger target. */
+function scheduledEventShareSync_() {
+  return rebuildUpcomingEventShares_();
+}
+
+/**
+ * Ensures one six-hour time-driven trigger exists for share-page maintenance.
+ * Safe to call repeatedly; an existing trigger is reused.
+ */
+function ensureEventShareSyncTrigger_() {
+  const handler = "scheduledEventShareSync_";
+  const existing = ScriptApp.getProjectTriggers().filter(trigger =>
+    trigger.getHandlerFunction() === handler
+  );
+
+  if (existing.length) {
+    return { created: false, count: existing.length };
+  }
+
+  ScriptApp.newTrigger(handler)
+    .timeBased()
+    .everyHours(6)
+    .create();
+
+  return { created: true, count: 1 };
 }
