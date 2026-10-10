@@ -6,7 +6,8 @@ const KCW_ALLOWED_ACTIONS = {
   createEvent: true,
   updateEvent: true,
   uploadEventImage: true,
-  deleteEvent: true
+  deleteEvent: true,
+  rebuildEventShares: true
 };
 
 
@@ -71,6 +72,9 @@ function doPost(e) {
 
       case "deleteEvent":
         return handleDeleteEvent_(request);
+
+      case "rebuildEventShares":
+        return handleRebuildEventShares_(request);
 
       default:
         throw new WebAppError(
@@ -220,6 +224,27 @@ function handleDeleteEvent_(request) {
     : { ok: true, state: "not-required" };
 
   return jsonResponse_({ ok: true, share: share });
+}
+
+
+function handleRebuildEventShares_() {
+  const rebuild = rebuildUpcomingEventShares_();
+  let schedule = { created: false, count: 0 };
+
+  try {
+    schedule = ensureEventShareSyncTrigger_();
+  } catch (error) {
+    console.warn(
+      "Event share sync trigger could not be ensured: " +
+      (error && error.message ? error.message : "unknown error")
+    );
+  }
+
+  return jsonResponse_({
+    ok: rebuild.failed === 0,
+    rebuild: rebuild,
+    schedule: schedule
+  });
 }
 
 
