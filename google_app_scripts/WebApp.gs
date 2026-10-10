@@ -240,8 +240,10 @@ function handleRebuildEventShares_() {
     );
   }
 
+  // A rebuild can complete with individual item failures. Return the counts to
+  // the client instead of converting a partial failure into a generic API error.
   return jsonResponse_({
-    ok: rebuild.failed === 0,
+    ok: true,
     rebuild: rebuild,
     schedule: schedule
   });
