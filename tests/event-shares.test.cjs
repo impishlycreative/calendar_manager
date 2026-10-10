@@ -13,13 +13,14 @@ function response(code, body = {}) {
   };
 }
 
-function backend(props = {}, existing = response(404)) {
+function backend(props = {}, existing = response(404), upcomingEvents = []) {
   const calls = [];
+  const triggers = [];
   const ctx = {
-    console: { error() {} },
+    console: { error() {}, warn() {} },
     requireObject_: value => assert(value && typeof value === 'object'),
     getScriptProperty_: key => props[key] || '',
-    getCalendarManager_: () => ({ getUpcomingEvents: () => [] }),
+    getCalendarManager_: () => ({ getUpcomingEvents: () => upcomingEvents }),
     WebAppError: class extends Error {
       constructor(code, message) { super(message); this.code = code; }
     },
@@ -29,6 +30,20 @@ function backend(props = {}, existing = response(404)) {
       newBlob: value => ({ getBytes: () => Array.from(Buffer.from(String(value), 'utf8')) }),
       computeDigest: (algorithm, bytes) => Array.from(crypto.createHash(algorithm).update(Buffer.from(bytes)).digest()),
       base64Encode: value => Buffer.from(String(value), 'utf8').toString('base64')
+    },
+    ScriptApp: {
+      getProjectTriggers: () => triggers,
+      newTrigger(handler) {
+        const draft = {
+          handler,
+          hours: null,
+          getHandlerFunction: () => handler,
+          timeBased() { return this; },
+          everyHours(hours) { this.hours = hours; return this; },
+          create() { triggers.push(this); return this; }
+        };
+        return draft;
+      }
     },
     UrlFetchApp: {
       fetch(url, options = {}) {
@@ -42,7 +57,7 @@ function backend(props = {}, existing = response(404)) {
   };
   vm.createContext(ctx);
   vm.runInContext(source, ctx);
-  return { ctx, calls };
+  return { ctx, calls, triggers };
 }
 
 const props = {
@@ -70,7 +85,7 @@ test('published event creates complete stable Open Graph landing HTML', () => {
   const result = ctx.syncEventShareArtifact_(event);
   assert.equal(result.ok, true);
   assert.equal(result.state, 'created');
-  assert.match(result.url, /abc123%40google\.com\.html\?v=3$/);
+  assert.match(result.url, /abc123%40google\.com\.html\?v=4$/);
   assert.equal(calls.length, 2);
   const payload = JSON.parse(calls[1].options.payload);
   const html = Buffer.from(payload.content, 'base64').toString('utf8');
@@ -80,10 +95,10 @@ test('published event creates complete stable Open Graph landing HTML', () => {
   assert.match(html, /Bring a story &amp; meet other writers\./);
   assert.doesNotMatch(html, /<strong>story<\/strong>/);
   assert.match(html, /name="description" content="Bring a story &amp; meet other writers\."/);
-  assert.match(html, /property="og:url" content="https:\/\/www\.kemptvillecreativewriters\.com\/share\/events\/abc123%40google\.com\.html\?v=3"/);
+  assert.match(html, /property="og:url" content="https:\/\/www\.kemptvillecreativewriters\.com\/share\/events\/abc123%40google\.com\.html\?v=4"/);
   assert.match(html, /property="og:image" content="https:\/\/www\.kemptvillecreativewriters\.com\/images\/event_123\.png"/);
   assert.match(html, /property="og:image:alt" content="Writers around a table"/);
-  assert.match(html, /rel="canonical" href="https:\/\/www\.kemptvillecreativewriters\.com\/share\/events\/abc123%40google\.com\.html\?v=3"/);
+  assert.match(html, /rel="canonical" href="https:\/\/www\.kemptvillecreativewriters\.com\/share\/events\/abc123%40google\.com\.html\?v=4"/);
   assert.doesNotMatch(html, /http-equiv="refresh"/);
   assert.doesNotMatch(html, /window\.location/);
   assert.doesNotMatch(html, /name="robots"/);
@@ -134,4 +149,38 @@ test('publishing failure is returned as a partial failure rather than thrown by 
   const result = ctx.trySyncEventShareArtifact_(event);
   assert.equal(result.ok, false);
   assert.equal(result.code, 'SHARE_PUBLISH_FAILED');
+});
+
+test('rebuild processes all upcoming published calendar events including direct calendar entries', () => {
+  const rawCalendarEvent = {
+    id: '66okirl57k99ubapgnmpab7re4_20261012T220000Z',
+    status: 'Published',
+    title: 'LIBRARY CLOSED - THANKSGIVING',
+    eventTitle: 'LIBRARY CLOSED - THANKSGIVING',
+    description: 'Library closed for Thanksgiving.',
+    image: '',
+    imageAlt: ''
+  };
+  const { ctx, calls } = backend(props, response(404), [event, rawCalendarEvent]);
+  const result = ctx.rebuildUpcomingEventShares_();
+
+  assert.equal(result.total, 2);
+  assert.equal(result.created, 2);
+  assert.equal(result.updated, 0);
+  assert.equal(result.failed, 0);
+  assert.equal(result.items.length, 2);
+  assert.equal(calls.filter(call => (call.options.method || 'get').toLowerCase() === 'put').length, 2);
+  assert.ok(calls.some(call => call.url.includes('66okirl57k99ubapgnmpab7re4_20261012T220000Z.html')));
+});
+
+test('scheduled trigger setup is idempotent', () => {
+  const { ctx, triggers } = backend(props);
+  const first = ctx.ensureEventShareSyncTrigger_();
+  const second = ctx.ensureEventShareSyncTrigger_();
+
+  assert.equal(first.created, true);
+  assert.equal(second.created, false);
+  assert.equal(triggers.length, 1);
+  assert.equal(triggers[0].getHandlerFunction(), 'scheduledEventShareSync_');
+  assert.equal(triggers[0].hours, 6);
 });
