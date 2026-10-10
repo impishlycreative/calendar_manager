@@ -234,7 +234,7 @@ function writeEventShareArtifact_(event, options) {
 
   const content = buildEventShareHtml_(event, Boolean(options.retired), options.reason);
   const contentSha = eventShareBlobSha_(content);
-  if (existingFile && existingFile.sha === contentSha) {
+  if (!options.forceWrite && existingFile && existingFile.sha === contentSha) {
     return {
       ok: true,
       state: "unchanged",
@@ -273,15 +273,20 @@ function writeEventShareArtifact_(event, options) {
   };
 }
 
-function syncEventShareArtifact_(event) {
+function syncEventShareArtifact_(event, options) {
   requireObject_(event, "Event data is required.");
+  options = options || {};
   if (event.status === "Published") {
-    return writeEventShareArtifact_(event, { createIfMissing: true });
+    return writeEventShareArtifact_(event, {
+      createIfMissing: true,
+      forceWrite: Boolean(options.forceWrite)
+    });
   }
   return writeEventShareArtifact_(event, {
     createIfMissing: false,
     retired: true,
-    reason: "This event is not currently published."
+    reason: "This event is not currently published.",
+    forceWrite: Boolean(options.forceWrite)
   });
 }
 
@@ -304,8 +309,8 @@ function eventShareFailure_(error) {
   };
 }
 
-function trySyncEventShareArtifact_(event) {
-  try { return syncEventShareArtifact_(event); }
+function trySyncEventShareArtifact_(event, options) {
+  try { return syncEventShareArtifact_(event, options); }
   catch (error) { return eventShareFailure_(error); }
 }
 
@@ -320,9 +325,10 @@ function tryRetireEventShareArtifact_(event, reason) {
  * events without KCW metadata as Published, so direct Calendar entries and
  * recurring instances are included as well as Calendar Manager-created events.
  *
- * The Google Calendar event id is the canonical key. writeEventShareArtifact_
- * reads the exact target file and compares its Git blob SHA before writing, so
- * repeated rebuilds update in place and never create duplicate share files.
+ * The Google Calendar event id is the canonical key. A manual/scheduled rebuild
+ * deliberately rewrites every current share file even when the generated HTML
+ * is byte-for-byte identical. This guarantees a rebuild creates fresh commits
+ * and triggers the downstream mainsite/dev synchronization workflow.
  */
 function rebuildUpcomingEventShares_() {
   const manager = getCalendarManager_();
@@ -337,7 +343,7 @@ function rebuildUpcomingEventShares_() {
 
   manager.getUpcomingEvents().forEach(event => {
     results.total += 1;
-    const result = trySyncEventShareArtifact_(event);
+    const result = trySyncEventShareArtifact_(event, { forceWrite: true });
     const state = result.state || null;
     results.items.push({
       id: event.id,
