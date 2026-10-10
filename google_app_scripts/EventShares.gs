@@ -79,7 +79,7 @@ function eventShareUrls_(config, eventId) {
   const filename = eventShareFilename_(eventId);
   return {
     filename,
-    share: config.siteBase + "share/events/" + encodeURIComponent(filename) + "?v=3",
+    share: config.siteBase + "share/events/" + encodeURIComponent(filename) + "?v=4",
     destination: config.siteBase + "schedule.html#" + encodeURIComponent(eventId),
     retiredDestination: config.siteBase + "schedule.html",
     destinationRelative: "../../schedule.html#" + encodeURIComponent(eventId),
@@ -93,23 +93,28 @@ function buildEventShareHtml_(event, retired, reason) {
   const urls = eventShareUrls_(config, event.id);
   const baseTitle = String(event.eventTitle || event.title || "KCW event").trim();
   const title = retired ? baseTitle + " — no longer available" : baseTitle;
+  const speaker = retired ? "" : String(event.speaker || "").trim();
+  const previewTitle = speaker ? speaker + " — " + title : title;
   const description = retired
     ? String(reason || "This event is no longer publicly available.")
     : eventShareDescription_(event);
   const destination = retired ? urls.retiredDestinationRelative : urls.destinationRelative;
   const image = eventShareImageUrl_(config, retired ? "" : event.image);
   const imageAlt = String((retired ? "" : (event.imageAlt || event.speaker)) || "Kemptville Creative Writers").trim();
+  const authorMeta = speaker
+    ? `\n  <meta name="author" content="${eventShareHtmlEscape_(speaker)}">`
+    : "";
 
   return `<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>${eventShareHtmlEscape_(title)} | Kemptville Creative Writers</title>
-  <meta name="description" content="${eventShareHtmlEscape_(description)}">
+  <title>${eventShareHtmlEscape_(previewTitle)} | Kemptville Creative Writers</title>
+  <meta name="description" content="${eventShareHtmlEscape_(description)}">${authorMeta}
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Kemptville Creative Writers">
-  <meta property="og:title" content="${eventShareHtmlEscape_(title)}">
+  <meta property="og:title" content="${eventShareHtmlEscape_(previewTitle)}">
   <meta property="og:description" content="${eventShareHtmlEscape_(description)}">
   <meta property="og:url" content="${eventShareHtmlEscape_(urls.share)}">
   <meta property="og:image" content="${eventShareHtmlEscape_(image)}">
@@ -118,7 +123,7 @@ function buildEventShareHtml_(event, retired, reason) {
 </head>
 <body>
   <main>
-    <h1>${eventShareHtmlEscape_(title)}</h1>
+    <h1>${eventShareHtmlEscape_(previewTitle)}</h1>
     <p>${eventShareHtmlEscape_(description)}</p>
     <p><a href="${eventShareHtmlEscape_(destination)}">View this event on Kemptville Creative Writers</a></p>
   </main>
