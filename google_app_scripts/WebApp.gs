@@ -547,7 +547,7 @@ function buildSafeListOptions_(data) {
 }
 
 
-const KCW_EVENT_FIELDS = ["id","type","title","description","date","startTime","endTime","timezone","allDay","location","address","directions","status","eventTitle","learningTopic","learningOutcome","format","speaker","speakerRole","speakerUrl","image","imageFilename","imageAlt","hoverText","featured","featureStart","featureEnd"];
+const KCW_EVENT_FIELDS = ["id","type","title","description","date","startTime","endTime","timezone","allDay","location","address","directions","status","eventTitle","learningTopic","learningOutcome","format","speaker","speakerRole","speakerUrl","image","imageFilename","imageAlt","hoverText","featured","featureStart","featureEnd","contestOrganizer","contestEligibility","contestRegion","contestOpenDate","contestDeadline","contestDeadlineTime","contestDeadlineTimezone","contestAnnouncementDate","contestUrl","contestTermsUrl","contestEntryFee","contestPrize","contestForm","contestGenres","contestLengthLimit","contestPublicationPolicy","contestAiPolicy","contestRestrictions","contestVerifiedAt","contestLanguage"];
 
 function toCalendarManagerEvent_(manager, data, existing) {
 
@@ -561,6 +561,22 @@ function toCalendarManagerEvent_(manager, data, existing) {
     if (existing && existing[key] !== undefined) event[key] = existing[key];
     if (data[key] !== undefined) event[key] = data[key];
   });
+
+  // Contests are all-day date ranges. Google Calendar's end date is exclusive.
+  // Preserve the explicitly stored submission window, not the event editor's
+  // ordinary meeting start/end widgets.
+  if (event.type === "Contest") {
+    const today = Utilities.formatDate(new Date(), manager.timezone, "yyyy-MM-dd");
+    return Object.assign({}, event, {
+      date: event.contestOpenDate || (existing && existing.date) || today,
+      allDay: true,
+      startTime: null,
+      endTime: null,
+      location: "",
+      featured: false,
+      timezone: manager.timezone
+    });
+  }
 
   // Canonical input passes through the manager's field validation.
   // Retain start/end support for the existing editor.
