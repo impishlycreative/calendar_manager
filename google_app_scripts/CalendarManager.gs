@@ -524,8 +524,11 @@ class CalendarManager {
          * Calendar content in logs.
          */
         console.warn(
-          "CalendarManager: Calendar event rejected: " +
-          error.message
+          "CalendarManager: Calendar event rejected (id=" +
+          String(rawEvent && rawEvent.id || "unknown")
+            .replace(/[^A-Za-z0-9_@.-]/g, "")
+            .slice(0, 140) +
+          "): " + error.message
         );
       }
     });
@@ -1155,17 +1158,25 @@ class CalendarManager {
     let metadata;
 
     try {
-
-      metadata =
-        JSON.parse(
-          metadataText
-        );
-
+      metadata = JSON.parse(metadataText);
     } catch (error) {
-
-      throw new Error(
-        "CalendarManager: KCW metadata contains invalid JSON."
-      );
+      // Google Calendar's rich-text editor can hard-wrap visible words,
+      // introducing raw CR/LF characters inside JSON string values.
+      // Repair only that specific formatting damage; other invalid JSON
+      // remains rejected.
+      const unfolded = this._unfoldWrappedMetadataJson_(metadataText);
+      if (unfolded === null) {
+        throw new Error(
+          "CalendarManager: KCW metadata contains invalid JSON."
+        );
+      }
+      try {
+        metadata = JSON.parse(unfolded);
+      } catch (retryError) {
+        throw new Error(
+          "CalendarManager: KCW metadata contains invalid JSON."
+        );
+      }
     }
 
     if (
@@ -1180,6 +1191,53 @@ class CalendarManager {
     }
 
     return metadata;
+  }
+
+
+  /**
+   * Undo only hard line breaks introduced inside quoted JSON strings.
+   * Newlines between JSON tokens are valid and are left untouched.
+   * JSON.stringify-escaped "\n" sequences are also preserved.
+   *
+   * Returns null if there is nothing to repair.
+   */
+  _unfoldWrappedMetadataJson_(text) {
+    let result = "";
+    let insideString = false;
+    let escaped = false;
+    let changed = false;
+
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i];
+
+      if (insideString && !escaped && (ch === "\n" || ch === "\r")) {
+        if (ch === "\r" && text[i + 1] === "\n") i++;
+        // Hard wrapping normally replaces a word-separating space.
+        // Avoid introducing a duplicate space around the wrap.
+        const before = result[result.length - 1];
+        const after = text[i + 1];
+        if (before !== " " && before !== "\t" && after !== " " && after !== "\t") {
+          result += " ";
+        }
+        changed = true;
+        continue;
+      }
+
+      result += ch;
+      if (insideString) {
+        if (escaped) {
+          escaped = false;
+        } else if (ch === "\\") {
+          escaped = true;
+        } else if (ch === '"') {
+          insideString = false;
+        }
+      } else if (ch === '"') {
+        insideString = true;
+      }
+    }
+
+    return changed ? result : null;
   }
 
 
