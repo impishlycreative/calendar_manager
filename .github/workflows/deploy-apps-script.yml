@@ -2,11 +2,24 @@ name: Deploy Apps Script
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - google_app_scripts/CalendarManager.gs
+      - google_app_scripts/WebApp.gs
+      - google_app_scripts/EventShares.gs
+
+permissions:
+  contents: read
+
+concurrency:
+  group: calendar-apps-script-deploy
+  cancel-in-progress: false
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
 
@@ -14,13 +27,47 @@ jobs:
         with:
           node-version: 20
 
-      - run: npm install -g @google/clasp
+      - name: Validate calendar contest metadata
+        run: node --test tests/contests.test.cjs
+
+      - name: Install clasp
+        run: npm install -g @google/clasp
 
       - name: Restore clasp login
         env:
           CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
-        run: printf '%s' "$CLASPRC_JSON" > ~/.clasprc.json
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${CLASPRC_JSON}" ]]; then
+            echo "::error::Missing CLASPRC_JSON Actions secret."
+            exit 1
+          fi
+          printf '%s' "$CLASPRC_JSON" > ~/.clasprc.json
+          chmod 600 ~/.clasprc.json
 
-      - name: Push Apps Script
+      - name: Verify this is the Content Handler Calendar web app
+        working-directory: google_app_scripts
+        shell: bash
+        env:
+          DEPLOYMENT_ID: AKfycbyvxfJniOdH81RLvZT2_0_yicxGIcrlTUuTvzXw96u0qnVUQ5ZllW84JvsnsY4DD0jh
+        run: |
+          set -euo pipefail
+          clasp list-deployments > /tmp/calendar-deployments.txt
+          if ! grep -Fq "$DEPLOYMENT_ID" /tmp/calendar-deployments.txt; then
+            echo "::error::The Content Handler calendar deployment ID is not owned by this Apps Script project."
+            exit 1
+          fi
+
+      - name: Push Apps Script source
         working-directory: google_app_scripts
         run: clasp push --force
+
+      - name: Update existing Content Handler calendar web app
+        working-directory: google_app_scripts
+        env:
+          DEPLOYMENT_ID: AKfycbyvxfJniOdH81RLvZT2_0_yicxGIcrlTUuTvzXw96u0qnVUQ5ZllW84JvsnsY4DD0jh
+        shell: bash
+        run: |
+          set -euo pipefail
+          clasp update-deployment "$DEPLOYMENT_ID" --description "KCW contest management ${GITHUB_SHA}"
