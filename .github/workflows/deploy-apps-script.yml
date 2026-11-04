@@ -27,8 +27,8 @@ jobs:
         with:
           node-version: 20
 
-      - name: Validate calendar contest metadata
-        run: node --test tests/contests.test.cjs
+      - name: Validate calendar metadata and safe integration tests
+        run: node --test tests/contests.test.cjs tests/calendar-integration-smoke.test.cjs
 
       - name: Install clasp
         run: npm install -g @google/clasp
