@@ -543,6 +543,14 @@ function buildSafeListOptions_(data) {
       options.status.trim();
   }
 
+  if (options.daysAhead !== undefined) {
+    if (!Number.isInteger(options.daysAhead) ||
+        options.daysAhead < 1 || options.daysAhead > 730) {
+      throw new WebAppError("INVALID_REQUEST", "daysAhead must be an integer from 1 to 730.");
+    }
+    safeOptions.daysAhead = options.daysAhead;
+  }
+
   return safeOptions;
 }
 
