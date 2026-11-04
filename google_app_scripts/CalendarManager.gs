@@ -1061,6 +1061,8 @@ class CalendarManager {
           true
         ),
 
+      ...this._validateContestFields_(metadata),
+
 
       // --------------------------------------------------------
       // DERIVED METADATA
@@ -1267,6 +1269,11 @@ class CalendarManager {
         event.featureEnd || ""
     };
 
+    // Contest fields are persisted within the standard KCW_METADATA block.
+    for (const key of this._contestFieldNames_()) {
+      metadata[key] = event[key] || "";
+    }
+
     let result =
       this._removeMetadataFromDescription_(event.description || "");
 
@@ -1334,7 +1341,9 @@ class CalendarManager {
       googleEvent.end = {
         date:
           this._addDaysToDateString_(
-            event.date,
+            event.type === "Contest" && event.contestDeadline
+              ? event.contestDeadline
+              : event.date,
             1
           )
       };
@@ -1821,16 +1830,60 @@ class CalendarManager {
         this._validateDate_(
           data.featureEnd,
           true
-        )
+        ),
+
+      ...this._validateContestFields_(data)
     };
 
     this._validateRelationships_(
       event
     );
 
+    // Drafts may be incomplete; publication requires a useful listing.
+    if (event.type === "Contest" && event.status === "Published") {
+      if (!event.title || !event.description || !event.contestEligibility ||
+          !event.contestDeadline || !event.contestUrl) {
+        throw new Error("CalendarManager: A published contest requires name, eligibility, deadline, description, and official URL.");
+      }
+    }
     return event;
   }
 
+  _contestFieldNames_() {
+    return ["contestOrganizer","contestEligibility","contestRegion","contestOpenDate","contestDeadline","contestDeadlineTime","contestDeadlineTimezone","contestAnnouncementDate","contestUrl","contestTermsUrl","contestEntryFee","contestPrize","contestForm","contestGenres","contestLengthLimit","contestPublicationPolicy","contestAiPolicy","contestRestrictions","contestVerifiedAt","contestLanguage"];
+  }
+
+  _validateContestFields_(data) {
+    const text = (key, max) => this._validateText_(data[key] || "", max, true);
+    const date = key => data[key] ? this._validateDate_(data[key], true) : "";
+    const url = key => data[key] ? this._validateUrl_(data[key], true) : "";
+    const result = {
+      contestOrganizer: text("contestOrganizer", 300),
+      contestEligibility: text("contestEligibility", 1500),
+      contestRegion: text("contestRegion", 300),
+      contestOpenDate: date("contestOpenDate"),
+      contestDeadline: date("contestDeadline"),
+      contestDeadlineTime: data.contestDeadlineTime ? this._validateTime_(data.contestDeadlineTime) : "",
+      contestDeadlineTimezone: text("contestDeadlineTimezone", 100),
+      contestAnnouncementDate: date("contestAnnouncementDate"),
+      contestUrl: url("contestUrl"),
+      contestTermsUrl: url("contestTermsUrl"),
+      contestEntryFee: text("contestEntryFee", 150),
+      contestPrize: text("contestPrize", 500),
+      contestForm: text("contestForm", 300),
+      contestGenres: text("contestGenres", 600),
+      contestLengthLimit: text("contestLengthLimit", 400),
+      contestPublicationPolicy: text("contestPublicationPolicy", 300),
+      contestAiPolicy: text("contestAiPolicy", 300),
+      contestRestrictions: text("contestRestrictions", 2000),
+      contestVerifiedAt: date("contestVerifiedAt"),
+      contestLanguage: text("contestLanguage", 200)
+    };
+    if (result.contestOpenDate && result.contestDeadline && result.contestDeadline < result.contestOpenDate) {
+      throw new Error("CalendarManager: Contest deadline cannot precede its opening date.");
+    }
+    return result;
+  }
 
   /**
    * Validates relationships between fields.
