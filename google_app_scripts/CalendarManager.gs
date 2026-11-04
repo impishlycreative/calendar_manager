@@ -3125,25 +3125,10 @@ function testCalendarManagerReadWrite() {
 
 
   // ----------------------------------------------------------
-  // TEST COMPLETE
+  // FINAL ASSERTIONS PASSED - CLEANUP STILL REQUIRED
   // ----------------------------------------------------------
 
-  Logger.log("");
-  Logger.log(
-    "========================================"
-  );
-
-  Logger.log(
-    " ALL TESTS PASSED"
-  );
-
-  Logger.log(
-    "========================================"
-  );
-
-  Logger.log("");
-
-  Logger.log("All read/write assertions passed.");
+  Logger.log("All read/write assertions passed; cleaning up test event.");
 
   } catch (error) {
     testFailure = error;
