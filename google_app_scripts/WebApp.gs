@@ -543,11 +543,19 @@ function buildSafeListOptions_(data) {
       options.status.trim();
   }
 
+  if (options.daysAhead !== undefined) {
+    if (!Number.isInteger(options.daysAhead) ||
+        options.daysAhead < 1 || options.daysAhead > 730) {
+      throw new WebAppError("INVALID_REQUEST", "daysAhead must be an integer from 1 to 730.");
+    }
+    safeOptions.daysAhead = options.daysAhead;
+  }
+
   return safeOptions;
 }
 
 
-const KCW_EVENT_FIELDS = ["id","type","title","description","date","startTime","endTime","timezone","allDay","location","address","directions","status","eventTitle","learningTopic","learningOutcome","format","speaker","speakerRole","speakerUrl","image","imageFilename","imageAlt","hoverText","featured","featureStart","featureEnd"];
+const KCW_EVENT_FIELDS = ["id","type","title","description","date","startTime","endTime","timezone","allDay","location","address","directions","status","eventTitle","learningTopic","learningOutcome","format","speaker","speakerRole","speakerUrl","image","imageFilename","imageAlt","hoverText","featured","featureStart","featureEnd","contestOrganizer","contestEligibility","contestRegion","contestOpenDate","contestDeadline","contestDeadlineTime","contestDeadlineTimezone","contestAnnouncementDate","contestUrl","contestTermsUrl","contestEntryFee","contestPrize","contestForm","contestGenres","contestLengthLimit","contestPublicationPolicy","contestAiPolicy","contestRestrictions","contestVerifiedAt","contestLanguage"];
 
 function toCalendarManagerEvent_(manager, data, existing) {
 
@@ -561,6 +569,29 @@ function toCalendarManagerEvent_(manager, data, existing) {
     if (existing && existing[key] !== undefined) event[key] = existing[key];
     if (data[key] !== undefined) event[key] = data[key];
   });
+
+  // Contests are all-day date ranges. Google Calendar's end date is exclusive.
+  // Preserve the explicitly stored submission window, not the event editor's
+  // ordinary meeting start/end widgets.
+  if (event.type === "Contest") {
+    const today = Utilities.formatDate(new Date(), manager.timezone, "yyyy-MM-dd");
+    // An unknown opening date defaults to today (or to the deadline
+    // for an already closed contest), without pretending it was provided.
+    const fallbackStart = event.contestDeadline && event.contestDeadline < today
+      ? event.contestDeadline : today;
+    const previousStart = existing && existing.date &&
+      (!event.contestDeadline || existing.date <= event.contestDeadline)
+      ? existing.date : "";
+    return Object.assign({}, event, {
+      date: event.contestOpenDate || previousStart || fallbackStart,
+      allDay: true,
+      startTime: null,
+      endTime: null,
+      location: "",
+      featured: false,
+      timezone: manager.timezone
+    });
+  }
 
   // Canonical input passes through the manager's field validation.
   // Retain start/end support for the existing editor.
