@@ -575,8 +575,15 @@ function toCalendarManagerEvent_(manager, data, existing) {
   // ordinary meeting start/end widgets.
   if (event.type === "Contest") {
     const today = Utilities.formatDate(new Date(), manager.timezone, "yyyy-MM-dd");
+    // An unknown opening date defaults to today (or to the deadline
+    // for an already closed contest), without pretending it was provided.
+    const fallbackStart = event.contestDeadline && event.contestDeadline < today
+      ? event.contestDeadline : today;
+    const previousStart = existing && existing.date &&
+      (!event.contestDeadline || existing.date <= event.contestDeadline)
+      ? existing.date : "";
     return Object.assign({}, event, {
-      date: event.contestOpenDate || (existing && existing.date) || today,
+      date: event.contestOpenDate || previousStart || fallbackStart,
       allDay: true,
       startTime: null,
       endTime: null,
