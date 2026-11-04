@@ -2564,7 +2564,7 @@ globalThis.CalendarManager =
  *
  * Tests:
  *
- *   1. ResourceManager
+ *   1. Script Properties-backed CalendarManager construction
  *   2. CalendarManager construction
  *   3. Service Account authentication
  *   4. Calendar write access
@@ -2585,10 +2585,38 @@ globalThis.CalendarManager =
  *
  * so it will not be returned by the normal Published event queries.
  *
- * The event is intentionally NOT automatically deleted.
- * This allows the Calendar entry and its metadata to be manually
- * inspected after the test.
+ * The event is always removed in a finally block, even when a test
+ * assertion fails. Only the event ID returned by this test is deleted.
+ *
+ * Run testCalendarManagerReadOnly() first if you only want to verify
+ * Script Properties, service-account authentication and read access.
  */
+
+/**
+ * Read-only smoke test of the SAME configuration used by the live web app.
+ * This function never creates, updates or deletes any calendar event.
+ */
+function testCalendarManagerReadOnly() {
+  Logger.log("CalendarManager read-only configuration test");
+
+  const calendar = getCalendarManager_();
+  Logger.log("Calendar ID configured: " + Boolean(calendar.calendarId));
+
+  if (!calendar._getAccessToken_()) {
+    throw new Error("TEST FAILED: Service Account returned no access token.");
+  }
+  Logger.log("Service Account authentication passed.");
+
+  const events = calendar.list({ state: "Upcoming", status: "All", daysAhead: 7 });
+  if (!Array.isArray(events)) {
+    throw new Error("TEST FAILED: Calendar list() did not return an array.");
+  }
+
+  Logger.log("Calendar read access passed (" + events.length + " upcoming events).");
+  Logger.log("READ-ONLY TEST PASSED. No calendar events were modified.");
+  return true;
+}
+
 function testCalendarManagerReadWrite() {
 
   Logger.log(
@@ -2605,38 +2633,13 @@ function testCalendarManagerReadWrite() {
 
 
   // ----------------------------------------------------------
-  // 1. RESOURCE MANAGER
+  // 1. CALENDAR MANAGER - SAME SCRIPT PROPERTIES AS THE WEB APP
   // ----------------------------------------------------------
 
   Logger.log("");
-  Logger.log(
-    "1. Loading ResourceManager..."
-  );
+  Logger.log("1. Creating CalendarManager from Script Properties...");
 
-  const resources =
-    new ResManagerLib.ResourceManager(
-      "1ylZaY-v6-t6Afsn2FnEFJSYWYyFYMzUvlPWOQYC87OI",
-      "Sheet1"
-    );
-
-  Logger.log(
-    "ResourceManager loaded."
-  );
-
-
-  // ----------------------------------------------------------
-  // 2. CALENDAR MANAGER
-  // ----------------------------------------------------------
-
-  Logger.log("");
-  Logger.log(
-    "2. Creating CalendarManager..."
-  );
-
-  const calendar =
-    new CalendarManager(
-      resources
-    );
+  const calendar = getCalendarManager_();
 
   Logger.log(
     "CalendarManager created."
@@ -2810,10 +2813,14 @@ function testCalendarManagerReadWrite() {
     "4. Creating test event..."
   );
 
-  const created =
-    calendar.add(
-      testEvent
-    );
+  let eventId = null;
+  let testFailure = null;
+
+  try {
+    const created =
+      calendar.add(
+        testEvent
+      );
 
   if (!created) {
 
@@ -2829,8 +2836,7 @@ function testCalendarManagerReadWrite() {
     );
   }
 
-  const eventId =
-    created.id;
+  eventId = created.id;
 
   Logger.log(
     "CREATE PASSED"
@@ -3119,42 +3125,38 @@ function testCalendarManagerReadWrite() {
 
 
   // ----------------------------------------------------------
-  // TEST COMPLETE
+  // FINAL ASSERTIONS PASSED - CLEANUP STILL REQUIRED
   // ----------------------------------------------------------
 
-  Logger.log("");
-  Logger.log(
-    "========================================"
-  );
+  Logger.log("All read/write assertions passed; cleaning up test event.");
 
-  Logger.log(
-    " ALL TESTS PASSED"
-  );
+  } catch (error) {
+    testFailure = error;
+    throw error;
+  } finally {
+    // Always attempt to remove ONLY the event created by this test.
+    // Preserve an earlier test failure if cleanup fails as well.
+    if (eventId) {
+      try {
+        Logger.log("Removing temporary test event: " + eventId);
+        if (!calendar.remove(eventId)) {
+          throw new Error("TEST FAILED: Temporary test event was not deleted.");
+        }
+        Logger.log("CLEANUP PASSED: Temporary event removed.");
+      } catch (cleanupError) {
+        Logger.log("CLEANUP FAILED: " + cleanupError.message);
+        Logger.log("Manual removal may be required for event ID: " + eventId);
+        if (!testFailure) {
+          throw cleanupError;
+        }
+      }
+    } else {
+      Logger.log("Cleanup skipped: no test event ID was returned.");
+    }
+  }
 
-  Logger.log(
-    "========================================"
-  );
-
-  Logger.log("");
-
-  Logger.log(
-    "The test event remains in Google Calendar for manual inspection."
-  );
-
-  Logger.log(
-    "Event ID: " +
-    eventId
-  );
-
-  Logger.log(
-    "Expected status: Draft"
-  );
-
-  Logger.log(
-    "Expected state: Upcoming"
-  );
-
-  Logger.log(
-    "Delete the test event manually when inspection is complete."
-  );
+  Logger.log("========================================");
+  Logger.log(" ALL TESTS PASSED; TEMPORARY EVENT REMOVED");
+  Logger.log("========================================");
+  return true;
 }
