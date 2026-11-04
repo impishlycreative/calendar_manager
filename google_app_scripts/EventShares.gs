@@ -98,7 +98,10 @@ function buildEventShareHtml_(event, retired, reason) {
   const description = retired
     ? String(reason || "This event is no longer publicly available.")
     : eventShareDescription_(event);
-  const destination = retired ? urls.retiredDestinationRelative : urls.destinationRelative;
+  const contest = /^(?:writing\s+)?contests?$/i.test(event.type || "");
+  const destination = contest
+    ? (retired ? "../../contests.html" : "../../contests.html#" + encodeURIComponent(event.id))
+    : (retired ? urls.retiredDestinationRelative : urls.destinationRelative);
   const image = eventShareImageUrl_(config, retired ? "" : event.image);
   const imageAlt = String((retired ? "" : (event.imageAlt || event.speaker)) || "Kemptville Creative Writers").trim();
   const authorMeta = speaker
@@ -131,6 +134,7 @@ function buildEventShareHtml_(event, retired, reason) {
         <a href="../../index.html">Home</a>
         <a href="../../about.html">About Us</a>
         <a href="../../schedule.html" aria-current="page">Schedule &amp; Events</a>
+        <a href="../../contests.html">Contests</a>
         <a href="../../archive.html">Archive</a>
         <a href="../../contact.html">Contact</a>
       </nav>
@@ -140,7 +144,7 @@ function buildEventShareHtml_(event, retired, reason) {
   <main>
     <section class="hero hero-schedule">
       <div class="hero-copy">
-        <p class="eyebrow">KCW calendar event</p>
+        <p class="eyebrow">${contest ? "KCW writing contest" : "KCW calendar event"}</p>
         <h1>${eventShareHtmlEscape_(previewTitle)}</h1>
         <p>${eventShareHtmlEscape_(description)}</p>
       </div>
@@ -148,11 +152,11 @@ function buildEventShareHtml_(event, retired, reason) {
 
     <section class="page-content">
       <article class="panel">
-        <p class="eyebrow">Event details</p>
+        <p class="eyebrow">${contest ? "Contest details" : "Event details"}</p>
         <h2 class="section-title">${eventShareHtmlEscape_(title)}</h2>
         ${speaker ? `<p><strong>Guest:</strong> ${eventShareHtmlEscape_(speaker)}</p>` : ""}
         <p>${eventShareHtmlEscape_(description)}</p>
-        <p><a class="button button-primary" href="${eventShareHtmlEscape_(destination)}">View this event on the KCW schedule</a></p>
+        <p><a class="button button-primary" href="${eventShareHtmlEscape_(destination)}">${contest ? "View this contest on KCW" : "View this event on the KCW schedule"}</a></p>
       </article>
     </section>
   </main>
@@ -167,6 +171,7 @@ function buildEventShareHtml_(event, retired, reason) {
         <a href="../../index.html">Home</a>
         <a href="../../about.html">About Us</a>
         <a href="../../schedule.html">Schedule &amp; Events</a>
+        <a href="../../contests.html">Contests</a>
         <a href="../../archive.html">Archive</a>
         <a href="../../contact.html">Contact</a>
         <a href="../../privacy.html">Privacy</a>
