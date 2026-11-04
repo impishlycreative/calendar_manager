@@ -423,16 +423,16 @@ class CalendarManager {
         )
       );
 
+    // Editors may request a longer, bounded lookahead for future contests.
+    const configuredDays = Number(options.daysAhead);
+    const lookaheadDays = Number.isInteger(configuredDays) &&
+      configuredDays >= 1 && configuredDays <= 730
+      ? configuredDays
+      : this.daysAhead;
     const futureEnd =
       new Date(
         now.getTime() +
-        (
-          this.daysAhead *
-          24 *
-          60 *
-          60 *
-          1000
-        )
+        lookaheadDays * 24 * 60 * 60 * 1000
       );
 
     let timeMin;
